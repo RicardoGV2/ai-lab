@@ -24,6 +24,7 @@ print(f"OK:{best}")
 PYEOF
 }
 
+if [ ! -f REPORT.md ]; then
 cat << REPORT > REPORT.md
 # 📊 Reporte Evolutivo Modular ($VERSION)
 - **Inicio:** \`$START_TS\` | **Motor:** \`$MODEL_NAME\` | **Tarea:** \`$(basename "$PWD")\`
@@ -31,6 +32,9 @@ cat << REPORT > REPORT.md
 | Ciclo | Hora | Modo | Acción / Paper | Antes | Después | Estado | Principio (Chino) |
 | :--- | :---: | :--- | :--- | :---: | :---: | :---: | :--- |
 REPORT
+else
+  echo -e "\n| - | $(date '+%H:%M:%S') | 🔄 Resume | Sesión reanudada ($VERSION) | - | - | ▶️ RESUMED | Continuando desde mejor versión |" >> REPORT.md
+fi
 
 CYCLE=0
 STAGNATION=0
@@ -139,5 +143,13 @@ PYEOF
     log_line "🧹 [Auto-Compact] Podando reglas redundantes del cerebro..."
     python "$ROOT_DIR/CORE/compact_brain.py" | tee -a RUN.log
   fi
-  sleep 2
+  python "$ROOT_DIR/CORE/statusbar.py" "EVOLVING: $(basename "$PWD") | Cycle #$CYCLE | Best: ${AFTER:-$BEFORE}ms"
+  read -t 3 -n 1 -p "  [c] Copiar reporte ahora | [q] Volver al menú | (auto-continúa en 3s)... " KEY
+  echo ""
+  if [[ "$KEY" == "c" || "$KEY" == "C" ]]; then
+    cat .tmp/LATEST_CLIP.txt | clip && echo "  ✅ Reporte copiado al portapapeles!"
+  elif [[ "$KEY" == "q" || "$KEY" == "Q" ]]; then
+    echo "  ⏸️ Volviendo al menú principal..."
+    break
+  fi
 done

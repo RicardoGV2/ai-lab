@@ -1,3 +1,4 @@
+import sys, os; sys.path.insert(0, os.path.expanduser('~/ai-lab/CORE')); import statusbar
 import os, subprocess, http.client, json, sys
 
 ROOT = os.path.expanduser("~/ai-lab")
@@ -50,6 +51,7 @@ def show_brain():
     print(tmem if tmem else "  (Sin trucos de entorno aún)")
 
     print(f"\n{C_CYAN}================================================================================{C_RESET}")
+    statusbar.render_prompt_bar('BRAIN VIEWER')
     op = input(f"\n{C_YELLOW}[t] Traducir al Español | [c] Copiar | [Enter] Volver: {C_RESET}").strip().lower()
     if op == "t":
         translate_to_spanish(f"PRINCIPIOS:\n{prin}\n\nENTORNO:\n{tmem}")

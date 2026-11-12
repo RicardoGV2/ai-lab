@@ -1,3 +1,4 @@
+import sys, os; sys.path.insert(0, os.path.expanduser('~/ai-lab/CORE')); import statusbar
 import os, re, subprocess, ctypes
 from collections import defaultdict
 
@@ -152,6 +153,7 @@ if __name__ == "__main__":
     except Exception as e:
         txt = f"Error generando dashboard: {e}"
         print(txt)
+    statusbar.render_prompt_bar('DASHBOARD')
     op = input(f"\n{C_YELLOW}[c] Copiar Dashboard | [Enter] Volver | [comando UCRT64] Ejecutar: {C_RESET}").strip()
     if op.lower() == "c":
         subprocess.run(["clip"], input=txt.encode("utf-8"))
