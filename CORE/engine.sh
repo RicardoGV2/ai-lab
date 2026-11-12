@@ -132,5 +132,12 @@ PYEOF
     log_line "❌ REVERTIDO (${AFTER}ms) -> $ERR"
     STAGNATION=$((STAGNATION + 1))
   fi
+  PRIN_CNT=$(grep -c "^-" "$ROOT_DIR/BRAIN/PRINCIPLES.md" 2>/dev/null || echo 0)
+  log_line "📊 [HUD] Récord actual: ${BEFORE}ms -> ${AFTER}ms | Reglas en cerebro: ${PRIN_CNT}"
+  { echo "## 🎯 REPORTE EN VIVO"; cat REPORT.md; echo ""; cat "$ROOT_DIR/BRAIN/PRINCIPLES.md"; } > .tmp/LATEST_CLIP.txt
+  if [ $((CYCLE % 8)) -eq 0 ]; then
+    log_line "🧹 [Auto-Compact] Podando reglas redundantes del cerebro..."
+    python "$ROOT_DIR/CORE/compact_brain.py" | tee -a RUN.log
+  fi
   sleep 2
 done

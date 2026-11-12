@@ -1,16 +1,14 @@
 # 通用工程原则 (UNIVERSAL_PRINCIPLES)
-- [环境约束] 严禁引入任何第三方库（如 pandas/numpy/numba），仅限 Python 标准库。
-- [I/O与解析] 纯文本 CSV 优先使用 `open()` 逐行 `split(',')` 替代 `csv.reader`，并用 `collections.defaultdict(float)` 减少字典查找。
-- [系统调用] Windows 硬件查询优先使用 `ctypes` 直接调用 Win32 API，严禁拉起 PowerShell 子进程。
-- [验证提速 365ms->208ms] 用 `open()` 逐行 `split(',')` 替代 `csv.DictReader` 减少解析开销
-- [论文启发] 在模型调用工具前增加统一校验层。
-- [论文启发] 利用局部一致性文法实现大规模数据的并行压缩。
-- [验证提速 208ms->195ms] 用 `sys.stdin` 逐行读取替代 `open()` 以消除文件 I/O 开销。
-- [验证提速 286ms->200ms] 用 `sys.stdin` 逐行读取替代 `open()` 以消除文件 I/O 开销
-- [论文启发] 利用哈希值可加性实现集合合并的高效计算。
-- [论文启发] 利用局部一致性语法规则实现高效并行处理。
-- [验证提速 207ms->193ms] 用 `sys.stdin` 逐行读取替代 `open()` 以消除文件 I/O 开销。
-- [论文启发] 采用哈希表等数据结构可显著降低流式数据处理的内存占用。
-- [验证提速 199ms->195ms] 用 `sys.stdin` 逐行读取替代 `open()` 以消除文件 I/O 开销
-- [验证提速 244ms->229ms] 用 `sys.stdin` 逐行读取替代 `open()` 以消除文件 I/O 开销。
-- [验证提速 252ms->196ms] 用 `sys.stdin` 逐行读取替代 `open()` 以消除文件 I/O 开销。
+- [环境约束] 严禁引入第三方库（pandas/numpy/numba），仅限 Python 标准库。
+- [I/O与解析] 纯文本 CSV 优先用 `open()` 逐行 `split(',')` 替代 `csv.DictReader`，并用 `collections.defaultdict(float)` 累加。
+- [系统调用] Windows 硬件查询优先用 `ctypes` 调用 Win32 API，严禁拉起 PowerShell 子进程。
+- [算法优化] 大规模流式数据优先利用哈希可加性、局部一致性规则与单次遍历聚合降低内存开销。
+- [工具校验] 调用系统工具前增加参数与路径校验层，避免重复无效尝试。
+- [验证提速 284ms->194ms] 用 sys.stdin 逐行读取替代 open() 以消除文件 I/O 开销
+- [论文启发] 利用哈希将集合合并简化为加法运算。
+- [验证提速 227ms->198ms] 用 sys.stdin 逐行读取替代 open() 以消除文件 I/O 开销
+- [验证提速 212ms->207ms] 用 sys.stdin 逐行读取替代 open() 以消除文件 I/O 开销
+- [验证提速 218ms->207ms] 用 sys.stdin 逐行读取替代 open() 以消除文件 I/O 开销
+- [论文启发] 利用哈希值的可加性实现集合合并的高效计算。
+- [论文启发] 利用不确定性建模提升字符串索引空间效率。
+- [验证提速 752ms->272ms] 用 sys.stdin 逐行读取替代 open() 以消除文件 I/O 开销
