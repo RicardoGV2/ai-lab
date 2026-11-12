@@ -23,9 +23,12 @@ def load_cfg():
     return cfg
 
 def copy_report():
-    tasks = sorted([d for d in os.listdir(TASKS) if os.path.isdir(os.path.join(TASKS, d))])
-    tdir = os.path.join(TASKS, tasks[-1]) if tasks else None
-    rep = open(os.path.join(tdir, "REPORT.md"), encoding="utf-8").read() if (tdir and os.path.exists(os.path.join(tdir, "REPORT.md"))) else ""
+    reps = []
+    for d in sorted(os.listdir(TASKS)):
+        rp = os.path.join(TASKS, d, "REPORT.md")
+        if os.path.exists(rp):
+            reps.append(open(rp, encoding="utf-8").read())
+    rep = "\n\n".join(reps)
     prin = open(os.path.join(BRAIN, "PRINCIPLES.md"), encoding="utf-8").read()
     tmem = open(os.path.join(BRAIN, "TOOLS_MEMORY.md"), encoding="utf-8").read()
     payload = f"## 🎯 OBJETIVO\nCerebro evolutivo portátil y agnóstico.\n\n{rep}\n\n{prin}\n\n## 🔧 TOOLS_MEMORY\n{tmem}"
