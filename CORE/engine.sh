@@ -39,6 +39,8 @@ fi
 CYCLE=0
 STAGNATION=0
 cp target.py .tmp/best_target.py
+BEST_RAW=$(measure_ms)
+BEST_MS=${BEST_RAW#OK:}
 log_line "🚀 Iniciando Motor Modular [$VERSION] en '$(basename "$PWD")' | Motor: $MODEL_NAME"
 
 while true; do
@@ -115,11 +117,15 @@ PYEOF
 
   if [[ "$AFTER_RAW" == OK:* ]]; then
     AFTER=${AFTER_RAW#OK:}
-    if [ "$AFTER" -lt "$BEFORE" ]; then
+    THRESH=$((BEST_MS * 97 / 100))
+    if [ "$AFTER" -lt "$THRESH" ]; then
+      BEST_MS=$AFTER
       cp target.py .tmp/best_target.py
+BEST_RAW=$(measure_ms)
+BEST_MS=${BEST_RAW#OK:}
       echo "- [验证提速 ${BEFORE}ms->${AFTER}ms] $IDEA" >> "$ROOT_DIR/BRAIN/PRINCIPLES.md"
       echo "| #$CYCLE | $NOW | ⚡ Optimizar | target.py | ${BEFORE}ms | **${AFTER}ms** | ✅ KEPT | $IDEA |" >> REPORT.md
-      log_line "🏆 NUEVO RÉCORD: ${BEFORE}ms -> ${AFTER}ms"
+      log_line "🏆 NUEVO RÉCORD GLOBAL: ${BEST_MS}ms (antes ${BEFORE}ms)"
       STAGNATION=0
     else
       cp .tmp/best_target.py target.py
