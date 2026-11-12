@@ -15,7 +15,7 @@ import subprocess, sys, time
 best = 999999
 for _ in range(3):
     t0 = time.perf_counter()
-    res = subprocess.run([sys.executable, "verify.py"], capture_output=True)
+    res = subprocess.run([sys.executable, "verify.py"], stdin=subprocess.DEVNULL, capture_output=True)
     dt = int((time.perf_counter() - t0) * 1000)
     if res.returncode != 0:
         print(f"ERR:{dt}"); sys.exit(0)

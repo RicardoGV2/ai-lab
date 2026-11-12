@@ -9,7 +9,9 @@ TASKS = os.path.join(ROOT, "TASKS")
 sys.path.insert(0, CORE)
 import statusbar
 
-C_CYAN, C_GREEN, C_YELLOW, C_RED, C_DIM, C_BOLD, C_RESET = "\033[96m", "\033[92m", "\033[93m", "\033[91m", "\033[90m", "\033[1m", "\033[0m"
+C_CYAN, C_GREEN, C_YELLOW, C_RED, C_MAGENTA, C_DIM, C_BOLD, C_RESET = (
+    "\033[96m", "\033[92m", "\033[93m", "\033[91m", "\033[95m", "\033[90m", "\033[1m", "\033[0m"
+)
 BG_PROC, BG_TASK = None, None
 
 def load_cfg():
@@ -23,23 +25,18 @@ def load_cfg():
     return cfg
 
 def copy_report():
-    reps = []
-    for d in sorted(os.listdir(TASKS)):
-        rp = os.path.join(TASKS, d, "REPORT.md")
-        if os.path.exists(rp):
-            reps.append(open(rp, encoding="utf-8").read())
-    rep = "\n\n".join(reps)
+    reps = [open(os.path.join(TASKS, d, "REPORT.md"), encoding="utf-8").read()
+            for d in sorted(os.listdir(TASKS)) if os.path.exists(os.path.join(TASKS, d, "REPORT.md"))]
     prin = open(os.path.join(BRAIN, "PRINCIPLES.md"), encoding="utf-8").read()
     tmem = open(os.path.join(BRAIN, "TOOLS_MEMORY.md"), encoding="utf-8").read()
-    payload = f"## 🎯 OBJETIVO\nCerebro evolutivo portátil y agnóstico.\n\n{rep}\n\n{prin}\n\n## 🔧 TOOLS_MEMORY\n{tmem}"
+    payload = f"## 🎯 OBJETIVO\nCerebro evolutivo portátil y agnóstico.\n\n{''.join(reps)}\n\n{prin}\n\n## 🔧 TOOLS_MEMORY\n{tmem}"
     subprocess.run(["clip"], input=payload.encode("utf-8"))
     print(f"{C_GREEN}✅ Reporte y cerebro copiados al portapapeles (listo para Ctrl+V).{C_RESET}")
 
 def run_ucrt(first_line):
     if first_line.strip() == "/paste":
         res = subprocess.run(["powershell", "-NoProfile", "-Command", "Get-Clipboard -Raw"], capture_output=True)
-        raw = res.stdout.decode("utf-8", errors="replace") if res.stdout else ""
-        script = raw.replace("\r\n", "\n").replace("\xa0", " ")
+        script = (res.stdout.decode("utf-8", errors="replace") if res.stdout else "").replace("\r\n", "\n").replace("\xa0", " ")
         print(f"{C_YELLOW}📋 [Ejecutando {len(script)} chars desde portapapeles]:{C_RESET}")
     else:
         lines = [first_line]
@@ -62,8 +59,10 @@ def run_ucrt(first_line):
 def handle_slash(cmd):
     c = cmd.strip().lower()
     if c == "/help":
-        print(f"\n{C_CYAN}Comandos Universales:{C_RESET} /clip | /dash | /brain | /compact | /sync | /model | /paste\n")
+        print(f"\n{C_CYAN}Comandos:{C_RESET} /save | /clip | /dash | /brain | /compact | /sync | /model | /paste\n")
         return True
+    elif c == "/save":
+        import version_control; version_control.create_snapshot(); return True
     elif c == "/clip": copy_report(); return True
     elif c == "/dash": subprocess.run([sys.executable, os.path.join(CORE, "dashboard.py")]); return True
     elif c == "/brain": subprocess.run([sys.executable, os.path.join(CORE, "brain_viewer.py")]); return True
@@ -71,7 +70,7 @@ def handle_slash(cmd):
     elif c == "/paste": run_ucrt("/paste"); return True
     elif c == "/sync":
         subprocess.run(["git", "add", "BRAIN/", "CORE/", "TASKS/"], cwd=ROOT)
-        subprocess.run(["git", "commit", "-m", "chore: sync v4.2 full harness"], cwd=ROOT)
+        subprocess.run(["git", "commit", "-m", "chore: sync v4.3 full harness"], cwd=ROOT)
         subprocess.run(["git", "push"], cwd=ROOT)
         return True
     elif c == "/model":
@@ -87,11 +86,8 @@ def esc_pressed():
 
 def stream_llm(messages, num_predict=800):
     cfg = load_cfg()
-    body = json.dumps({
-        "model": cfg["MODEL_NAME"], "messages": messages,
-        "stream": True, "think": False,
-        "options": {"num_predict": int(num_predict), "temperature": 0.25}
-    }).encode("utf-8")
+    body = json.dumps({"model": cfg["MODEL_NAME"], "messages": messages, "stream": True, "think": False,
+                       "options": {"num_predict": int(num_predict), "temperature": 0.25}}).encode("utf-8")
     conn = http.client.HTTPConnection(cfg["OLLAMA_HOST"], int(cfg["OLLAMA_PORT"]), timeout=180)
     conn.request("POST", "/api/chat", body=body, headers={"Content-Type": "application/json"})
     resp = conn.getresponse()
@@ -102,12 +98,9 @@ def stream_llm(messages, num_predict=800):
             line = raw.decode("utf-8").strip()
             if not line: continue
             tok = json.loads(line).get("message", {}).get("content", "")
-            out += tok
-            sys.stdout.write(tok); sys.stdout.flush()
-    except KeyboardInterrupt:
-        aborted = True
-    finally:
-        conn.close()
+            out += tok; sys.stdout.write(tok); sys.stdout.flush()
+    except KeyboardInterrupt: aborted = True
+    finally: conn.close()
     print(f"\n{C_RED}⏹️ [Interrumpido con ESC]{C_RESET}" if aborted else "")
     return out, aborted
 
@@ -154,11 +147,12 @@ def select_task():
     return os.path.join(TASKS, tasks[int(c) - 1]) if (c.isdigit() and 1 <= int(c) <= len(tasks)) else None
 
 while True:
+    import shutil
     cfg = load_cfg()
     p_cnt = len([l for l in open(os.path.join(BRAIN, "PRINCIPLES.md"), encoding="utf-8") if l.strip().startswith("-")])
     t_cnt = len([l for l in open(os.path.join(BRAIN, "TOOLS_MEMORY.md"), encoding="utf-8") if l.strip().startswith("-")])
     w = min(78, max(54, shutil.get_terminal_size((76, 24)).columns - 2))
-    title = f" ✳ Welcome to AI-LAB v4.2 | Cerebro Agnóstico ({p_cnt}+{t_cnt} reglas)"
+    title = f" ✳ Welcome to AI-LAB v4.3 | Cerebro Agnóstico ({p_cnt}+{t_cnt} reglas)"
     print(f"\n{C_CYAN}{C_BOLD}╭{'─'*w}╮")
     print(f"│{title:<{w}}│")
     print(f"╰{'─'*w}╯{C_RESET}")
@@ -166,7 +160,8 @@ while True:
     print(f"  {C_GREEN}(2){C_RESET} Agente con Herramientas    {C_GREEN}(6){C_RESET} Copiar Reporte (/clip)")
     print(f"  {C_GREEN}(3){C_RESET} Probar Script Optimizado   {C_GREEN}(7){C_RESET} Cambiar Modelo (/model)")
     print(f"  {C_GREEN}(4){C_RESET} Investigar en arXiv        {C_GREEN}(8){C_RESET} Nueva Tarea   {C_GREEN}(9){C_RESET} Sync Git (/sync)")
-    print(f"  {C_CYAN}(b){C_RESET} Ver Cerebro (/brain)       {C_YELLOW}(c){C_RESET} Compactar     {C_RED}(0){C_RESET} Salir\n")
+    print(f"  {C_CYAN}(b){C_RESET} Ver Cerebro (/brain)       {C_YELLOW}(c){C_RESET} Compactar     {C_MAGENTA}(v){C_RESET} Backups (/save)")
+    print(f"  {C_RED}(0){C_RESET} Salir\n")
     statusbar.render_prompt_bar("MAIN MENU", BG_PROC, BG_TASK)
     try: op = input(f"{C_CYAN}> {C_RESET}").strip()
     except KeyboardInterrupt: break
@@ -176,11 +171,12 @@ while True:
     if op == "1":
         tdir = select_task()
         if tdir:
-            print(f"{C_GREEN}🚀 Ejecutando en primer plano (RAM Safe). Pulsa [q] tras un ciclo o Ctrl+C para volver.{C_RESET}")
-            try: subprocess.run(["bash", os.path.join(CORE, "engine.sh")], cwd=tdir)
+            print(f"{C_GREEN}🚀 Corriendo en esta misma ventana (Ctrl+C para volver al menú)...{C_RESET}\n")
+            try:
+                subprocess.run(["bash", os.path.join(CORE, "engine.sh")], cwd=tdir)
             except KeyboardInterrupt:
-                print(f"\n{C_YELLOW}⏸️ Loop pausado. Progreso guardado (pulsa 1 para reanudar).{C_RESET}")
-                time.sleep(1.2)
+                print(f"\n{C_YELLOW}⏸️ Pausado. Progreso guardado.{C_RESET}")
+                time.sleep(1.0)
     elif op == "2": run_agent_chat()
     elif op == "3":
         tdir = select_task()
@@ -210,6 +206,7 @@ while True:
     elif op == "9": handle_slash("/sync"); input("Enter...")
     elif op.lower() == "b": subprocess.run([sys.executable, os.path.join(CORE, "brain_viewer.py")])
     elif op.lower() == "c": subprocess.run([sys.executable, os.path.join(CORE, "compact_brain.py")]); input("Enter...")
+    elif op.lower() == "v": subprocess.run([sys.executable, os.path.join(CORE, "version_control.py")])
     elif op == "0": break
     else:
         run_ucrt(op)
