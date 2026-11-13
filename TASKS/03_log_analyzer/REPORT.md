@@ -78,3 +78,53 @@
 
 | - | 23:05:18 | 🔄 Resume | Sesión reanudada (v4.1-smart-memory) | - | - | ▶️ RESUMED | Continuando desde mejor versión |
 | #1 | 23:05:19 | ⚡ Optimizar | target.py | ERR:292ms | 248ms | ❌ ERROR | 使用字节流处理替代字符串正则匹配以加速日志解析。 |
+
+| - | 23:09:32 | 🔄 Resume | Sesión reanudada (v4.1-smart-memory) | - | - | ▶️ RESUMED | Continuando desde mejor versión |
+| #1 | 23:09:33 | ⚡ Optimizar | target.py | ERR:362ms | 202ms | ❌ ERROR | 使用字节流处理替代字符串正则匹配以加速日志解析。 |
+| #2 | 23:11:40 | ⚡ Optimizar | target.py | ERR:310ms | 261ms | ❌ ERROR | 使用字节流处理替代字符串正则匹配以加速日志解析。 |
+| #3 | 23:13:55 | 📚 arXiv | parallel stream hashing | - | - | 🧠 LEARNED | 利用哈希值求和实现集合合并的高效计算。 |
+| #3 | 23:13:55 | ⚡ Optimizar | target.py | ERR:324ms | 466ms | ❌ ERROR | 使用字节流处理替代字符串正则匹配以加速日志解析 |
+| #4 | 23:15:53 | ⚡ Optimizar | target.py | ERR:311ms | 286ms | ❌ ERROR | 使用字节流处理替代字符串正则匹配以加速日志解析 |
+| #5 | 23:17:59 | 📚 arXiv | parallel sparse indexing | - | - | 🧠 LEARNED | 采用分块线性化坐标法加速大规模并行稀疏张量运算。 |
+| #5 | 23:17:59 | ⚡ Optimizar | target.py | ERR:297ms | 570ms | ❌ ERROR | 使用字节流读取替代字符串逐行解析以加速日志处理 |
+| #6 | 23:20:11 | ⚡ Optimizar | target.py | ERR:301ms | 506ms | ❌ ERROR | 使用字节流处理替代字符串正则匹配以加速日志解析 |
+| #7 | 23:24:50 | 📚 arXiv | parallel stream hashing | - | - | 🧠 LEARNED | 利用基数划分平衡流式处理中的负载倾斜。 |
+| #7 | 23:24:50 | ⚡ Optimizar | target.py | ERR:488ms | 412ms | ❌ ERROR | 使用字节流读取替代字符串逐行解析以加速日志处理 |
+| #8 | 23:29:37 | ⚡ Optimizar | target.py | ERR:314ms | 523ms | ❌ ERROR | 使用字节流处理替代字符串逐行解析以加速日志读取 |
+| #9 | 23:33:14 | 📚 arXiv | parallel sparse indexing | - | - | 🧠 LEARNED | 利用稀疏矩阵乘法构建高效索引与张量分解框架。 |
+| #9 | 23:33:14 | ⚡ Optimizar | target.py | ERR:853ms | 334ms | ❌ ERROR | 使用字节流处理替代字符串逐行解析以加速日志读取 |
+| #10 | 23:35:36 | ⚡ Optimizar | target.py | ERR:441ms | 370ms | ❌ ERROR | 使用字节流读取替代字符串逐行解析以加速日志处理 |
+| #11 | 23:38:02 | 📚 arXiv | parallel stream hashing | - | - | 🧠 LEARNED | 采用基于键的分区策略以缓解并行流处理中的负载倾斜。 |
+| #11 | 23:38:02 | ⚡ Optimizar | target.py | ERR:674ms | 368ms | ❌ ERROR | 使用字节流读取替代字符串逐行解析以加速日志处理 |
+| #12 | 23:42:12 | ⚡ Optimizar | target.py | ERR:332ms | 390ms | ❌ ERROR | 改用字节流读取与局部正则编译加速日志解析 |
+| #13 | 23:44:58 | 📚 arXiv | parallel sparse indexing | - | - | 🧠 LEARNED | 利用稀疏矩阵乘法构建高效分布式索引算法。 |
+| #13 | 23:44:58 | ⚡ Optimizar | target.py | ERR:584ms | 369ms | ❌ ERROR | 使用字节流读取与局部正则编译加速日志解析 |
+| #14 | 23:49:04 | ⚡ Optimizar | target.py | ERR:321ms | 759ms | ❌ ERROR | 改用字节流读取与局部正则编译加速日志解析 |
+| #15 | 23:53:39 | 📚 arXiv | parallel stream hashing | - | - | 🧠 LEARNED | 利用哈希值求和实现集合合并的高效计算。 |
+| #15 | 23:53:39 | ⚡ Optimizar | target.py | ERR:455ms | 464ms | ❌ ERROR | 改用字节流读取与局部正则编译加速日志解析 |
+| #16 | 23:58:40 | ⚡ Optimizar | target.py | ERR:444ms | 455ms | ❌ ERROR | 改用字节流读取与局部正则编译加速日志解析 |
+| #17 | 00:01:11 | 📚 arXiv | parallel sparse indexing | - | - | 🧠 LEARNED | 利用稀疏矩阵乘法构建高效索引算法。 |
+| #17 | 00:01:11 | ⚡ Optimizar | target.py | ERR:715ms | 328ms | ❌ ERROR | 改用字节流读取与局部正则编译加速日志解析 |
+| #18 | 00:03:27 | ⚡ Optimizar | target.py | ERR:336ms | 416ms | ❌ ERROR | 改用字节流读取与局部正则编译加速日志解析 |
+| #19 | 00:05:30 | 📚 arXiv | parallel stream hashing | - | - | 🧠 LEARNED | 采用基于键的负载划分以平衡并行流处理中的工作负载偏差。 |
+| #19 | 00:05:30 | ⚡ Optimizar | target.py | ERR:458ms | 370ms | ❌ ERROR | 改用字节流读取与局部正则编译加速日志解析 |
+
+| - | 17:15:14 | 🔄 Resume | Sesión reanudada (v4.1-smart-memory) | - | - | ▶️ RESUMED | Continuando desde mejor versión |
+| #1 | 17:15:15 | ⚡ Optimizar | target.py | 290ms | 356ms | ❌ ERROR | 改用字节流读取与局部正则编译加速日志解析 |
+| #2 | 17:17:44 | ⚡ Optimizar | target.py | 226ms | 227ms | ❌ ERROR | 改用字节流读取与局部正则编译加速日志解析 |
+| #3 | 17:20:01 | 📚 arXiv | vectorized sparse hashing | - | - | 🧠 LEARNED | 稀疏数据通过常数乘法实现最优哈希映射。 |
+| #3 | 17:20:01 | ⚡ Optimizar | target.py | 249ms | 268ms | ❌ ERROR | 改用字节流读取与局部正则编译加速日志解析 |
+| #4 | 17:22:04 | ⚡ Optimizar | target.py | 243ms | 267ms | ❌ ERROR | 改用字节流读取与局部正则编译加速日志解析 |
+| #5 | 17:23:55 | 📚 arXiv | vectorized sparse hashing | - | - | 🧠 LEARNED | 利用稀疏性通过常数乘法实现完美哈希。 |
+| #5 | 17:23:55 | ⚡ Optimizar | target.py | 225ms | **173ms** | ✅ KEPT | 改用字节流读取与局部正则编译加速日志解析 |
+
+| - | 17:31:44 | 🔄 Resume | Sesión reanudada (v4.1-smart-memory) | - | - | ▶️ RESUMED | Continuando desde mejor versión |
+| #1 | 17:31:45 | ⚡ Optimizar | target.py | 181ms | 180ms | ❌ SLOWER | 将字典排序改为使用 heapq.nsmallest 避免 O(n log n) 开销 |
+| #2 | 17:33:44 | ⚡ Optimizar | target.py | 176ms | 171ms | ❌ SLOWER | 改用 heapq.nsmallest 替代排序以优化尾部检索性能 |
+| #3 | 17:38:29 | 📚 arXiv | parallel stream hashing | - | - | 🧠 LEARNED | 利用哈希将数据均匀分布以平衡并行处理负载。 |
+| #3 | 17:38:29 | ⚡ Optimizar | target.py | 171ms | 179ms | ❌ SLOWER | 使用局部变量缓存正则匹配结果以加速循环迭代 |
+| #4 | 17:40:29 | ⚡ Optimizar | target.py | 173ms | 328ms | ❌ ERROR | 改用 heapq.nsmallest 替代排序以优化尾部检索性能 |
+| #5 | 17:43:26 | 📚 arXiv | parallel sparse indexing | - | - | 🧠 LEARNED | 利用稀疏矩阵乘法作为通用原语可高效实现分布式内存下的索引操作。 |
+| #5 | 17:43:26 | ⚡ Optimizar | target.py | 177ms | 207ms | ❌ SLOWER | 使用 `heapq.nsmallest` 替代排序以优化尾部检索性能 |
+| #6 | 17:48:21 | ⚡ Optimizar | target.py | 234ms | 171ms | ❌ SLOWER | 将字典排序改为使用 heapq.nsmallest 避免 O(n log n) 开销 |
+| #7 | 17:50:25 | 📚 arXiv | parallel stream hashing | - | - | 🧠 LEARNED | 利用哈希将数据均匀分布以平衡计算负载。 |
