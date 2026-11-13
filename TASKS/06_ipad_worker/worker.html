@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>AI-LAB iPad Co-Processor</title></head>
+<body style="background:#0d1117;color:#58a6ff;font-family:monospace;padding:20px;">
+<h2>⚡ AI-LAB: iPad Apple Silicon Co-Processor</h2>
+<div id="status">Conectando con PC...</div>
+<script>
+let processed = 0;
+async function poll() {
+  try {
+    const r = await fetch('/task');
+    if (r.status === 200) {
+      const job = await r.json();
+      const t0 = performance.now();
+      // Cómputo paralelo sobre el lote enviado por la PC
+      let acc = 0;
+      const arr = job.data;
+      for (let i = 0; i < arr.length; i++) {
+        let x = arr[i];
+        for (let k = 0; k < 180; k++) { x = (x * 1664525 + 1013904223) >>> 0; }
+        acc = (acc + x) >>> 0;
+      }
+      const dt = (performance.now() - t0).toFixed(1);
+      await fetch('/result', {method:'POST', body: JSON.stringify({id: job.id, acc: acc, ms: dt})});
+      processed++;
+      document.getElementById('status').innerText = `✅ Lotes procesados en iPad: ${processed} (Último: ${dt}ms)`;
+    }
+  } catch(e) {}
+  setTimeout(poll, 30);
+}
+poll();
+</script></body></html>
