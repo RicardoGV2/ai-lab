@@ -59,7 +59,16 @@ while true; do
   log_line "🌐 CICLO #$CYCLE | $VERSION | Motor: $MODEL_NAME | Estancamiento: $STAGNATION/2"
   log_line "===================================================="
 
-  if [ $STAGNATION -ge 2 ]; then
+  if [ $STAGNATION -ge 3 ]; then
+    log_line "?? [Gemini Mentor] Estancamiento 3/3 -> Consultando a Gemini Flash..."
+    MENTOR_TIP=$(python "$ROOT_DIR/CORE/gemini_mentor.py" "$PWD" | tr '|' '/' | tail -n 1)
+    if [[ "$MENTOR_TIP" != MENTOR_ERR* ]] && [ -n "$MENTOR_TIP" ]; then
+      echo "- [????] $MENTOR_TIP" >> "$ROOT_DIR/BRAIN/PRINCIPLES.md"
+      echo "| #$CYCLE | $NOW | ?? Gemini | Mentor Break | - | - | ?? MENTORED | $MENTOR_TIP |" >> REPORT.md
+      log_line "? [Gemini Mentor]: $MENTOR_TIP"
+    fi
+    STAGNATION=0
+  elif [ $STAGNATION -ge 2 ]; then
     log_line "📚 [Auto-Research] Buscando papers nuevos en arXiv..."
     PAST_QUERIES=$(grep "### " "$ROOT_DIR/BRAIN/PAPERS_DIGEST.md" 2>/dev/null | tail -n 6)
     TOPIC=$(python "$ROOT_DIR/CORE/llm_call.py" "ARXIV_QUERY" "$MODEL_NAME" "$OLLAMA_HOST" "$OLLAMA_PORT" 60 "false" << PROMPT | tr -d '"' | tail -n 1

@@ -67,6 +67,14 @@ def handle_slash(cmd):
     if c == "/help":
         print(f"\n{C_CYAN}Comandos:{C_RESET} /save | /clip | /dash | /brain | /compact | /sync | /model | /paste\n")
         return True
+    elif c == "/ipad": start_ipad_bridge(); return True
+    elif c == "/mentor":
+        tdir = select_task()
+        if tdir:
+            import gemini_mentor
+            print(f"{C_CYAN}?? Consultando a Gemini Mentor...{C_RESET}")
+            print(f"{C_GREEN}? Sugerencia:{C_RESET} {gemini_mentor.ask_mentor(tdir)}")
+        return True
     elif c == "/save":
         import version_control; version_control.create_snapshot(); return True
     elif c == "/clip" or c.startswith("/clip "):
@@ -147,6 +155,15 @@ def run_agent_chat():
                 continue
             break
 
+def start_ipad_bridge():
+    bdir = os.path.join(TASKS, "06_ipad_worker")
+    script = os.path.join(bdir, "start_bridge.py")
+    if not os.path.exists(script):
+        print(f"{C_RED}❌ No se encontró 06_ipad_worker/start_bridge.py{C_RESET}"); return
+    flags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS if os.name == "nt" else 0
+    subprocess.Popen([sys.executable, "start_bridge.py"], cwd=bdir, creationflags=flags)
+    time.sleep(0.8)
+
 def select_task():
     tasks = sorted([d for d in os.listdir(TASKS) if os.path.isdir(os.path.join(TASKS, d))])
     if not tasks: return None
@@ -170,7 +187,7 @@ while True:
     print(f"  {C_GREEN}(3){C_RESET} Probar Script Optimizado   {C_GREEN}(7){C_RESET} Cambiar Modelo (/model)")
     print(f"  {C_GREEN}(4){C_RESET} Investigar en arXiv        {C_GREEN}(8){C_RESET} Nueva Tarea   {C_GREEN}(9){C_RESET} Sync Git (/sync)")
     print(f"  {C_CYAN}(b){C_RESET} Ver Cerebro (/brain)       {C_YELLOW}(c){C_RESET} Compactar     {C_MAGENTA}(v){C_RESET} Backups (/save)")
-    print(f"  {C_RED}(0){C_RESET} Salir\n")
+    print(f"  {C_CYAN}(i){C_RESET} Conectar iPad (/ipad)     {C_RED}(0){C_RESET} Salir\n")
     statusbar.render_prompt_bar("MAIN MENU", BG_PROC, BG_TASK)
     try: op = input(f"{C_CYAN}> {C_RESET}").strip()
     except KeyboardInterrupt: break
@@ -216,6 +233,7 @@ while True:
     elif op.lower() == "b": subprocess.run([sys.executable, os.path.join(CORE, "brain_viewer.py")])
     elif op.lower() == "c": subprocess.run([sys.executable, os.path.join(CORE, "compact_brain.py")]); input("Enter...")
     elif op.lower() == "v": subprocess.run([sys.executable, os.path.join(CORE, "version_control.py")])
+    elif op.lower() == "i": start_ipad_bridge(); input(f"{C_DIM}Pulsa Enter...{C_RESET}")
     elif op == "0": break
     else:
         run_ucrt(op)

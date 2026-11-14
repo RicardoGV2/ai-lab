@@ -1,17 +1,59 @@
 <!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>AI-LAB iPad Co-Processor</title></head>
-<body style="background:#0d1117;color:#58a6ff;font-family:monospace;padding:20px;">
-<h2>⚡ AI-LAB: iPad Apple Silicon Co-Processor</h2>
-<div id="status">Conectando con PC...</div>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-LAB iPad Co-Processor</title>
+<style>
+  body { background:#0d1117; color:#c9d1d9; font-family:-apple-system,monospace; padding:18px; margin:0; }
+  h2 { color:#58a6ff; margin:0 0 12px 0; font-size:1.2rem; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
+  .card { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:12px; }
+  .label { font-size:0.75rem; color:#8b949e; text-transform:uppercase; }
+  .val { font-size:1.4rem; font-weight:bold; color:#3fb950; margin-top:4px; }
+  canvas { width:100%; height:110px; background:#161b22; border:1px solid #30363d; border-radius:8px; display:block; margin-bottom:14px; }
+  .log { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:10px; font-size:0.8rem; max-height:180px; overflow:hidden; }
+  .row { padding:4px 0; border-bottom:1px solid #21262d; color:#a5d6ff; }
+</style>
+</head>
+<body>
+  <h2>⚡ AI-LAB | Apple Silicon Co-Processor</h2>
+  <div id="status" style="color:#3fb950;margin-bottom:12px;">🟢 Conectado a PC — Esperando lotes...</div>
+  <div class="grid">
+    <div class="card"><div class="label">Lotes iPad</div><div class="val" id="cnt">0</div></div>
+    <div class="card"><div class="label">Último / Promedio</div><div class="val" id="lat">- ms</div></div>
+    <div class="card"><div class="label">Velocidad</div><div class="val" id="ops">0 op/s</div></div>
+  </div>
+  <canvas id="chart" width="600" height="110"></canvas>
+  <div class="log" id="log"><div style="color:#8b949e;">Historial en vivo aparecerá aquí...</div></div>
+
 <script>
-let processed = 0;
+let processed = 0, totalMs = 0, history = [], logs = [];
+const ctx = document.getElementById('chart').getContext('2d');
+
+function drawChart() {
+  ctx.clearRect(0, 0, 600, 110);
+  if (history.length < 2) return;
+  const maxV = Math.max(...history, 10);
+  ctx.strokeStyle = '#3fb950';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  history.forEach((v, i) => {
+    const x = (i / (history.length - 1)) * 580 + 10;
+    const y = 95 - (v / maxV) * 80;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+}
+
 async function poll() {
+  let busy = false;
   try {
     const r = await fetch('/task');
     if (r.status === 200) {
+      busy = true;
       const job = await r.json();
       const t0 = performance.now();
-      // Cómputo paralelo sobre el lote enviado por la PC
       let acc = 0;
       const arr = job.data;
       for (let i = 0; i < arr.length; i++) {
@@ -19,13 +61,28 @@ async function poll() {
         for (let k = 0; k < 180; k++) { x = (x * 1664525 + 1013904223) >>> 0; }
         acc = (acc + x) >>> 0;
       }
-      const dt = (performance.now() - t0).toFixed(1);
-      await fetch('/result', {method:'POST', body: JSON.stringify({id: job.id, acc: acc, ms: dt})});
+      const dt = Math.max(0.1, performance.now() - t0);
+      await fetch('/result', {method:'POST', body: JSON.stringify({id: job.id, acc: acc, ms: dt.toFixed(1)})});
+
       processed++;
-      document.getElementById('status').innerText = `✅ Lotes procesados en iPad: ${processed} (Último: ${dt}ms)`;
+      totalMs += dt;
+      history.push(dt);
+      if (history.length > 40) history.shift();
+      const opsSec = Math.round((arr.length * 180) / (dt / 1000)).toLocaleString();
+
+      document.getElementById('status').innerText = '⚡ Procesando lotes en tiempo real (Apple Silicon)';
+      document.getElementById('cnt').innerText = processed;
+      document.getElementById('lat').innerText = `${dt.toFixed(1)} / ${(totalMs/processed).toFixed(1)} ms`;
+      document.getElementById('ops').innerText = `${opsSec}`;
+      logs.unshift(`<div class="row">#${processed} | Lote ID ${job.id} | ${arr.length} items | <b>${dt.toFixed(1)} ms</b> | hash=${acc}</div>`);
+      if (logs.length > 7) logs.pop();
+      document.getElementById('log').innerHTML = logs.join('');
+      drawChart();
     }
   } catch(e) {}
-  setTimeout(poll, 30);
+  setTimeout(poll, busy ? 2 : 25);
 }
 poll();
-</script></body></html>
+</script>
+</body>
+</html>
