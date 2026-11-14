@@ -100,6 +100,8 @@ def handle_slash(cmd):
                 print(f"{C_CYAN}?? Ultimos procesos cerrados:{C_RESET} {', '.join(data.get('closed', ())) or 'Ninguno'}")
                 print(f"{C_DIM}   ?? Usa '/protect nombre.exe' para excluir cualquiera de ellos.{C_RESET}")
         return True
+    elif c == "/settings": __import__("agent_tools").open_settings_menu(); return True
+    elif c.startswith("/effort"): __import__("agent_tools").handle_effort_cmd(c[7:]); return True
     elif c == "/test": __import__('sys_tests').run_system_tests(); return True
     elif c == "/save":
         import version_control; version_control.create_snapshot(); return True
@@ -148,6 +150,7 @@ def stream_llm(messages, num_predict=800):
     return out, aborted
 
 def run_agent_chat():
+    return subprocess.run([sys.executable, os.path.join(CORE, "agent_tools.py")])
     prin = open(os.path.join(BRAIN, "PRINCIPLES.md"), encoding="utf-8").read()
     tmem = open(os.path.join(BRAIN, "TOOLS_MEMORY.md"), encoding="utf-8").read()
     sys_prompt = f"You are an autonomous local Windows agent.\nKNOWLEDGE:\n{prin}\nTOOLS_MEMORY:\n{tmem}\nTOOLS: [[RUN: <bash_cmd>]], [[ARXIV: <query>]], [[LEARN: <under_25_chinese_chars>]]. Use [[RUN: ...]] immediately."
@@ -227,7 +230,7 @@ while True:
         if tdir:
             print(f"{C_GREEN}🚀 Corriendo en esta misma ventana (Ctrl+C para volver al menú)...{C_RESET}\n")
             try:
-                subprocess.run(["bash", os.path.join(CORE, "engine.sh")], cwd=tdir)
+                __import__("sys_tests").run_guarded_session(tdir, mode="loop")
             except KeyboardInterrupt:
                 print(f"\n{C_YELLOW}⏸️ Pausado. Progreso guardado.{C_RESET}")
                 time.sleep(1.0)

@@ -1,0 +1,3 @@
+tibia.exe
+client.exe
+battleye.exe
