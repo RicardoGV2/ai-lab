@@ -1,5 +1,9 @@
 # 📜 AI-LAB CHANGELOG & BACKUPS
 
+### 🏷️ `snap-20261114-154215` — 2026-11-14 15:42
+- **Nota:** a lot of agent improvements
+- **Archivos:** `.gitignore, BRAIN/CONFIG.env, BRAIN/TOOLS_MEMORY.md, CORE/agent_tools.py, 288ms], CORE/vision_eye.py, ailab, ailab.bat, cube_3d.py, prueba0.txt, python, rotacion_cubo.py`
+
 ### 🏷️ `snap-20261114-140856` — 2026-11-14 14:08
 - **Nota:** save
 - **Archivos:** `.gitignore, 288ms], ailab, ailab.bat, python`
