@@ -703,6 +703,8 @@ def main():
             TUI.busy = False
             TUI.status_note = ""
             TUI.refresh()
+    except KeyboardInterrupt:
+        pass
     finally:
         if TUI: TUI.stop()
 

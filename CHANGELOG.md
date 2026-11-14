@@ -1,5 +1,9 @@
 # 📜 AI-LAB CHANGELOG & BACKUPS
 
+### 🏷️ `snap-20261114-204156` — 2026-11-14 20:41
+- **Nota:** added ctrl+c to escape to main menu
+- **Archivos:** `.gitignore, BRAIN/agent_history.txt, BRAIN/agent_session.log, BRAIN/last_screen.png, CORE/agent_tools.py, CORE/harness.py, .connect_tabs.py, .fix_tabs.py, .fix_ui.py, .patch_menu.py, 288ms], ailab, ailab.bat, cube_3d.py, prueba0.txt, python, rotacion_cubo.py, rotating_cube.py`
+
 ### 🏷️ `snap-20261114-202706` — 2026-11-14 20:27
 - **Nota:** before trying to improve main interface
 - **Archivos:** `.gitignore, BRAIN/agent_history.txt, BRAIN/agent_session.log, CORE/agent_tools.py, CORE/tui_bar.py, .connect_tabs.py, .fix_tabs.py, .fix_ui.py, .patch_menu.py, 288ms], ailab, ailab.bat, cube_3d.py, prueba0.txt, python, rotacion_cubo.py, rotating_cube.py`

@@ -228,7 +228,9 @@ while True:
             except KeyboardInterrupt:
                 print(f"\n{C_YELLOW}⏸️ Pausado. Progreso guardado.{C_RESET}")
                 time.sleep(1.0)
-    elif op == "2": run_agent_chat()
+    elif op == "2":
+        try: run_agent_chat()
+        except KeyboardInterrupt: pass
     elif op == "3":
         tdir = select_task()
         if tdir:
