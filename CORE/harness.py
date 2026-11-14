@@ -102,6 +102,7 @@ def handle_slash(cmd):
         return True
     elif c == "/settings": __import__("agent_tools").open_settings_menu(); return True
     elif c.startswith("/effort"): __import__("agent_tools").handle_effort_cmd(c[7:]); return True
+    elif c.startswith("/verbose"): __import__("agent_tools").handle_verbose_cmd(c[8:]); return True
     elif c == "/test": __import__('sys_tests').run_system_tests(); return True
     elif c == "/save":
         import version_control; version_control.create_snapshot(); return True

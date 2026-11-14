@@ -10,7 +10,7 @@ MODES = ("chat", "plan", "auto")
 EFFORTS = ("low", "medium", "high")
 
 def read_cfg():
-    cfg = {"MODEL": "qwen3.5-pi", "AGENT_MODE": "chat", "EFFORT": "low"}
+    cfg = {"MODEL": "qwen3.5-pi", "AGENT_MODE": "chat", "EFFORT": "low", "VERBOSE": "off"}
     if os.path.exists(CFG_FILE):
         for l in open(CFG_FILE, encoding="utf-8"):
             if "=" in l and not l.strip().startswith("#"):
@@ -50,6 +50,9 @@ def open_settings_menu():
         elif ch == "4":
             m = input("  Nombre del modelo Ollama (ej. qwen3.5-pi): ").strip()
             if m: write_cfg({"MODEL": m})
+        elif ch == "5":
+            cur_v = cfg.get("VERBOSE", "off")
+            write_cfg({"VERBOSE": "on" if cur_v == "off" else "off"})
         else:
             break
 
@@ -70,7 +73,31 @@ def load_brain_context():
     tools = open(os.path.join(BRAIN, "TOOLS_MEMORY.md"), encoding="utf-8").read() if os.path.exists(os.path.join(BRAIN, "TOOLS_MEMORY.md")) else ""
     return f"{prin}\n{tools}"
 
+def handle_verbose_cmd(arg):
+    val = arg.strip().lower()
+    cfg = read_cfg()
+    if val in ("on", "off"):
+        write_cfg({"VERBOSE": val})
+    else:
+        val = "on" if cfg.get("VERBOSE", "off") == "off" else "off"
+        write_cfg({"VERBOSE": val})
+    print(f"{C_YELLOW}💭 Verbose (mostrar pensamiento): {val.upper()}{C_RESET}")
+
 def tool_launch_app(app_name):
+    parts = app_name.strip().split(None, 1)
+    if len(parts) == 2 and parts.__getitem__(0).lower() in ("code", "notepad", "explorer", "start"):
+        exe, target = parts.__getitem__(0), parts.__getitem__(1).strip('"').strip("'")
+        if not os.path.isabs(target):
+            desk = os.path.join(os.path.expanduser("~"), "Desktop", target)
+            if os.path.exists(desk): target = desk
+            elif os.path.exists(os.path.join(ROOT, target)): target = os.path.join(ROOT, target)
+        if exe.lower() == "code":
+            code_cmd = os.path.join(os.path.expanduser("~"), "AppData", "Local", "Programs", "Microsoft VS Code", "bin", "code.cmd")
+            if os.path.exists(code_cmd):
+                subprocess.Popen([code_cmd, target], shell=True)
+                return f"OK: Abierto en VS Code: {target}"
+        subprocess.Popen(f'{exe} "{target}"', shell=True)
+        return f"OK: Abierto {target} con {exe}"
     q = app_name.lower().replace(".exe", "").strip()
     roots = [
         os.path.join(os.path.expanduser("~"), "AppData", "Local"),
@@ -112,18 +139,62 @@ def tool_read_file(path):
     p = path if os.path.isabs(path) else os.path.join(ROOT, path)
     return open(p, encoding="utf-8", errors="replace").read()[:2500] if os.path.exists(p) else f"No existe: {path}"
 
+def check_esc_pressed():
+    if os.name == "nt":
+        import msvcrt
+        while msvcrt.kbhit():
+            if msvcrt.getwch() == "\x1b":
+                return True
+    return False
+
 def call_ollama(messages, cfg):
     model = cfg.get("MODEL", "qwen3.5-pi")
     effort = cfg.get("EFFORT", "low")
-    think = (effort == "high")
-    num_pred = 350 if effort == "low" else (650 if effort == "medium" else 1200)
+    verbose = (cfg.get("VERBOSE", "off") == "on")
+    think = (effort in ("medium", "high"))
+    base_pred = 450 if effort == "low" else (900 if effort == "medium" else 1600)
+    num_pred = base_pred + (1200 if verbose else 0)
     host = "127." + "0.0.1"
-    payload = json.dumps({"model": model, "messages": messages, "stream": False, "think": think, "options": {"temperature": 0.2, "num_predict": num_pred}}).encode("utf-8")
+    payload = json.dumps({"model": model, "messages": messages, "stream": True, "think": think, "options": {"temperature": 0.2, "num_predict": num_pred}}).encode("utf-8")
     conn = http.client.HTTPConnection(host, 11434, timeout=90)
     conn.request("POST", "/api/chat", body=payload, headers={"Content-Type": "application/json"})
-    raw = conn.getresponse().read().decode("utf-8")
-    conn.close()
-    return json.loads(raw).get("message", {}).get("content", "").strip()
+    resp = conn.getresponse()
+    full_content, in_think, started_out = [], False, False
+    try:
+        for raw_line in resp:
+            if check_esc_pressed():
+                if in_think: sys.stdout.write(C_RESET)
+                sys.stdout.write(f"\n{C_YELLOW}⏹️  [Interrumpido con ESC]{C_RESET}\n")
+                sys.stdout.flush()
+                conn.close()
+                return "__CANCELLED__"
+            line = raw_line.decode("utf-8", errors="replace").strip()
+            if not line: continue
+            chunk = json.loads(line)
+            msg = chunk.get("message", {})
+            th = msg.get("thinking", "")
+            ct = msg.get("content", "")
+            if th and verbose:
+                if not started_out:
+                    sys.stdout.write(" " * 32 + "\r")
+                    started_out = True
+                if not in_think:
+                    sys.stdout.write(f"\n{C_DIM}💭 ")
+                    in_think = True
+                sys.stdout.write(th)
+                sys.stdout.flush()
+            if ct:
+                if not started_out:
+                    sys.stdout.write(" " * 32 + "\r")
+                    started_out = True
+                if in_think:
+                    sys.stdout.write(f"{C_RESET}\n")
+                    in_think = False
+                full_content.append(ct)
+    finally:
+        if in_think: sys.stdout.write(C_RESET + "\n")
+        conn.close()
+    return "".join(full_content).strip()
 
 def create_learning_loop(goal_desc, cfg):
     print(f"\n{C_BOLD}{C_YELLOW}🧬 DISEÑADOR DE NUEVO BUCLE DE APRENDIZAJE{C_RESET}")
@@ -160,6 +231,13 @@ def read_input_with_shift_tab():
             sys.stdout.write("\n")
             return "".join(buf).strip()
         elif ch == "\x03": raise KeyboardInterrupt
+        elif ch == "\x1b":
+            if buf:
+                sys.stdout.write("\r" + " " * (len(buf) + 45) + "\r")
+                buf.clear()
+            else:
+                sys.stdout.write("\n")
+                return "salir"
         elif ch in ("\x08", "\x7f"):
             if buf: buf.pop(); sys.stdout.write("\b \b")
         elif ch in ("\x00", "\xe0"):
@@ -203,6 +281,7 @@ def main():
         if low in ("salir", "exit", "quit"): break
         if low == "/settings": open_settings_menu(); last_mode = None; continue
         if low.startswith("/effort"): handle_effort_cmd(user_in[7:]); continue
+        if low.startswith("/verbose"): handle_verbose_cmd(user_in[8:]); continue
         if low.startswith("/wrong"):
             note = user_in[6:].strip() or "No ejecutar herramientas sin petición explícita."
             open(os.path.join(BRAIN, "PRINCIPLES.md"), "a", encoding="utf-8").write(f"- [用户纠正] {note}\n")
@@ -212,6 +291,9 @@ def main():
             print(f"{C_DIM}⏳ Pensando ({cfg.get('EFFORT', 'low')})...{C_RESET}", end="\r", flush=True)
             reply = call_ollama(messages, cfg)
             print(" " * 32, end="\r", flush=True)
+            if reply == "__CANCELLED__":
+                if messages and messages[-1].get("role") == "user": messages.pop()
+                break
             if '"tool"' in reply and "{" in reply and "}" in reply:
                 try:
                     j_str = reply[reply.find("{"):reply.rfind("}")+1]
