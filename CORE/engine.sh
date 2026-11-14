@@ -19,7 +19,15 @@ for _ in range(3):
     dt = int((time.perf_counter() - t0) * 1000)
     if res.returncode != 0:
         print(f"ERR:{dt}"); sys.exit(0)
-    if dt < best: best = dt
+    out_txt = res.stdout.decode("utf-8", errors="ignore")
+    import re as _re
+    m_ram = _re.search(r"Peak RAM =\s*(\d+)", out_txt)
+    if m_ram:
+        kb = int(m_ram.group(1))
+        score = kb + dt
+        if score < best: best = score
+    else:
+        if dt < best: best = dt
 print(f"OK:{best}")
 PYEOF
 }

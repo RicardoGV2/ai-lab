@@ -24,14 +24,20 @@ def load_cfg():
                 cfg[k.strip()] = v.strip().strip('"').strip("'")
     return cfg
 
-def copy_report():
-    reps = [open(os.path.join(TASKS, d, "REPORT.md"), encoding="utf-8").read()
-            for d in sorted(os.listdir(TASKS)) if os.path.exists(os.path.join(TASKS, d, "REPORT.md"))]
+def copy_report(n=10):
+    rfiles = [os.path.join(TASKS, d, "REPORT.md") for d in os.listdir(TASKS) if os.path.exists(os.path.join(TASKS, d, "REPORT.md"))]
+    latest_rep = ""
+    if rfiles:
+        newest = max(rfiles, key=os.path.getmtime)
+        lines = [l for l in open(newest, encoding="utf-8") if l.strip()]
+        header = lines[:4]
+        body = lines[4:]
+        latest_rep = "".join(header + body[-n:]) if len(body) > n else "".join(lines)
     prin = open(os.path.join(BRAIN, "PRINCIPLES.md"), encoding="utf-8").read()
     tmem = open(os.path.join(BRAIN, "TOOLS_MEMORY.md"), encoding="utf-8").read()
-    payload = f"## 🎯 OBJETIVO\nCerebro evolutivo portátil y agnóstico.\n\n{''.join(reps)}\n\n{prin}\n\n## 🔧 TOOLS_MEMORY\n{tmem}"
+    payload = f"## ?? OBJETIVO\nCerebro evolutivo port�til y agn�stico.\n\n{latest_rep}\n\n{prin}\n\n## ?? TOOLS_MEMORY\n{tmem}"
     subprocess.run(["clip"], input=payload.encode("utf-8"))
-    print(f"{C_GREEN}✅ Reporte y cerebro copiados al portapapeles (listo para Ctrl+V).{C_RESET}")
+    print(f"{C_GREEN}? Ultimos {n} registros + cerebro copiados al portapapeles.{C_RESET}")
 
 def run_ucrt(first_line):
     if first_line.strip() == "/paste":
@@ -63,7 +69,10 @@ def handle_slash(cmd):
         return True
     elif c == "/save":
         import version_control; version_control.create_snapshot(); return True
-    elif c == "/clip": copy_report(); return True
+    elif c == "/clip" or c.startswith("/clip "):
+        parts = c.split()
+        n = int(parts[1]) if (len(parts) > 1 and parts[1].isdigit()) else 10
+        copy_report(n); return True
     elif c == "/dash": subprocess.run([sys.executable, os.path.join(CORE, "dashboard.py")]); return True
     elif c == "/brain": subprocess.run([sys.executable, os.path.join(CORE, "brain_viewer.py")]); return True
     elif c == "/compact": subprocess.run([sys.executable, os.path.join(CORE, "compact_brain.py")]); return True

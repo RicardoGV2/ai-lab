@@ -1,5 +1,9 @@
 # 📜 AI-LAB CHANGELOG & BACKUPS
 
+### 🏷️ `snap-20261114-101531` — 2026-11-14 10:15
+- **Nota:** nigh cicles
+- **Archivos:** `BRAIN/PAPERS_DIGEST.md, BRAIN/PRINCIPLES.md, CORE/engine.sh, CORE/harness.py, TASKS/07_ram_compressor/REPORT.md, TASKS/07_ram_compressor/target.py, 288ms], ailab, python`
+
 ### 🏷️ `snap-20261113-232455` — 2026-11-13 23:24
 - **Nota:** v4.3 estable + 3 laboratorios (iPad, RAM, Ollama)
 - **Archivos:** `BRAIN/PAPERS_DIGEST.md, BRAIN/PRINCIPLES.md, 288ms], TASKS/05_fuzzy_search/, TASKS/06_ipad_worker/, TASKS/07_ram_compressor/, TASKS/08_ollama_tuner/, ailab, python`
