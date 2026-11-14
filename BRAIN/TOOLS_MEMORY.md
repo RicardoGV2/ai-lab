@@ -1,2 +1,3 @@
 - [路径规范] Git Bash 下严禁用 `%USERPROFILE%`，必须用 `os.path.expanduser('~')` 或 `~/Desktop`、`~/Downloads`。
 - [执行安全] 复杂命令或带引号路径严禁单行 `python -c` 嵌套转义，应写入 `.tmp_script.py` 后执行。
+- [????] Tarea 09_win_ram_optimizer sufri� cierre inesperado y fue recuperada.

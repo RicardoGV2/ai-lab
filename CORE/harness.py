@@ -100,7 +100,7 @@ def handle_slash(cmd):
                 print(f"{C_CYAN}?? Ultimos procesos cerrados:{C_RESET} {', '.join(data.get('closed', ())) or 'Ninguno'}")
                 print(f"{C_DIM}   ?? Usa '/protect nombre.exe' para excluir cualquiera de ellos.{C_RESET}")
         return True
-    elif c == "/test": run_system_tests(); return True
+    elif c == "/test": __import__('sys_tests').run_system_tests(); return True
     elif c == "/save":
         import version_control; version_control.create_snapshot(); return True
     elif c == "/clip" or c.startswith("/clip "):
@@ -198,6 +198,7 @@ def select_task():
     c = input("Elige número: ").strip()
     return os.path.join(TASKS, tasks[int(c) - 1]) if (c.isdigit() and 1 <= int(c) <= len(tasks)) else None
 
+recovered_dir = __import__('sys_tests').check_crash_recovery()
 while True:
     import shutil
     cfg = load_cfg()
@@ -260,7 +261,7 @@ while True:
     elif op.lower() == "b": subprocess.run([sys.executable, os.path.join(CORE, "brain_viewer.py")])
     elif op.lower() == "c": subprocess.run([sys.executable, os.path.join(CORE, "compact_brain.py")]); input("Enter...")
     elif op.lower() == "v": subprocess.run([sys.executable, os.path.join(CORE, "version_control.py")])
-    elif op.lower() == "t": run_system_tests(); input(f"{C_DIM}Pulsa Enter...{C_RESET}")
+    elif op.lower() == "t": __import__('sys_tests').run_system_tests(); input(f"{C_DIM}Pulsa Enter...{C_RESET}")
     elif op.lower() == "i": start_ipad_bridge(); input(f"{C_DIM}Pulsa Enter...{C_RESET}")
     elif op == "0": break
     else:
