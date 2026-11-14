@@ -75,6 +75,29 @@ def handle_slash(cmd):
             print(f"{C_CYAN}?? Consultando a Gemini Mentor...{C_RESET}")
             print(f"{C_GREEN}? Sugerencia:{C_RESET} {gemini_mentor.ask_mentor(tdir)}")
         return True
+    elif c == "/ram":
+        r_script = os.path.join(TASKS, "09_win_ram_optimizer", "verify.py")
+        if os.path.exists(r_script):
+            res = subprocess.run([sys.executable, r_script], capture_output=True, text=True)
+            print(f"{C_GREEN}🧹 {res.stdout.strip() or res.stderr.strip()}{C_RESET}")
+        return True
+    elif c == "/keep" or c.startswith("/protect"):
+        parts = c.split()
+        pfile = os.path.join(BRAIN, "PROTECTED_APPS.txt")
+        if len(parts) > 1:
+            app = parts.__getitem__(1).lower()
+            if not app.endswith(".exe"): app += ".exe"
+            open(pfile, "a", encoding="utf-8").write(f"{app}\n")
+            open(os.path.join(BRAIN, "PRINCIPLES.md"), "a", encoding="utf-8").write(f"- [????] ??????????????: {app}\n")
+            print(f"{C_GREEN}??? '{app}' a�adido a PROTECTED_APPS.txt y al cerebro. Nunca volver� a cerrarse.{C_RESET}")
+        else:
+            lfile = os.path.join(TASKS, "09_win_ram_optimizer", ".tmp", "last_actions.json")
+            if os.path.exists(lfile):
+                import json as _j
+                data = _j.loads(open(lfile, encoding="utf-8").read())
+                print(f"{C_CYAN}?? Ultimos procesos cerrados:{C_RESET} {', '.join(data.get('closed', ())) or 'Ninguno'}")
+                print(f"{C_DIM}   ?? Usa '/protect nombre.exe' para excluir cualquiera de ellos.{C_RESET}")
+        return True
     elif c == "/save":
         import version_control; version_control.create_snapshot(); return True
     elif c == "/clip" or c.startswith("/clip "):

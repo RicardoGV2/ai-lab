@@ -22,9 +22,13 @@ for _ in range(3):
     out_txt = res.stdout.decode("utf-8", errors="ignore")
     import re as _re
     m_ram = _re.search(r"Peak RAM =\s*(\d+)", out_txt)
+    m_free = _re.search(r"Free RAM =\s*(\d+)", out_txt)
     if m_ram:
-        kb = int(m_ram.group(1))
-        score = kb + dt
+        score = int(m_ram.group(1)) + dt
+        if score < best: best = score
+    elif m_free:
+        free_mb = int(m_free.group(1))
+        score = max(1, 32000 - free_mb)
         if score < best: best = score
     else:
         if dt < best: best = dt
