@@ -969,3 +969,5 @@ Let me spawn the subagent first as instructed.
 [17:49:47] [THINK] The user said "hola" which is Spanish for "hello". According to my rules, I should respond directly in plain English for greetings. I'll keep it concise and direct as per my persona instructions.
 [17:49:47] [REPLY] Hello! How can I help you today?
 [17:50:03] [ESC] Cancelado por el usuario
+[17:51:52] [USER:auto] hola
+[17:52:03] [ESC] Cancelado por el usuario

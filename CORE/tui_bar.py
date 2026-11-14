@@ -49,7 +49,7 @@ class BottomBarTUI:
 
     def _setup_region(self, h):
         if h != self.last_h:
-            sys.stdout.write(f"\033[1;{h - 4}r")
+            sys.stdout.write(f"\033[1;{h - 5}r")
             self.last_h = h
 
     def _draw_dock(self, w, h):
@@ -60,7 +60,7 @@ class BottomBarTUI:
         m_col = C_GREEN if mode == "CHAT" else (C_YELLOW if mode == "PLAN" else (C_RED if mode == "FREE" else (C_MAG if mode == "INFINITE" else C_CYAN)))
         loop_st = f"{C_YELLOW}● BUSY{C_RESET}" if self.busy else f"{C_DIM}○ LOOP:IDLE{C_RESET}"
         q_st = f" | {C_CYAN}📥 COLA:{len(self.queue)}{C_RESET}" if self.queue else ""
-        note_st = f" | {C_CYAN}{self.status_note}{C_RESET}" if self.status_note else ""
+        act_line = f"{C_YELLOW}* {self.status_note} {C_DIM}(esc to interrupt){C_RESET}" if self.status_note else ""
         now = time.strftime("%H:%M:%S")
         sep = f"{C_DIM}{'─' * (w - 1)}{C_RESET}"
 
@@ -70,10 +70,11 @@ class BottomBarTUI:
         prompt_line = f"{C_BOLD}{C_CYAN}> {C_RESET}{vis_typed}"
         status_line = (
             f"[{C_BOLD}{model}{C_RESET}] {C_GREEN}UCRT64/Win{C_RESET} | {C_MAG}{get_ram_str()}{C_RESET} | "
-            f"{loop_st} | {m_col}[{mode} | effort:{eff}]{C_RESET} | {now} | v4.3{q_st}{note_st}"
+            f"{loop_st} | {m_col}[{mode} | effort:{eff}]{C_RESET} | {now} | v4.3{q_st}"
         )
 
         sys.stdout.write(
+            f"\033[{h-4};1H\033[2K{act_line}"
             f"\033[{h-3};1H\033[2K{sep}"
             f"\033[{h-2};1H\033[2K{prompt_line}"
             f"\033[{h-1};1H\033[2K{sep}"
@@ -86,7 +87,7 @@ class BottomBarTUI:
         with self.lock:
             w, h = self._dims()
             self._setup_region(h)
-            top_bot = h - 4
+            top_bot = h - 5
             sys.stdout.write(f"\033[{top_bot};{self.scroll_col + 1}H")
             parts = re.split(r"(\x1b\[[0-9;]*[A-Za-z]|\n|\r)", str(text))
             for p in parts:

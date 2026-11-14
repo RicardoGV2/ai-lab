@@ -465,6 +465,12 @@ def main():
             messages = [{"role": "system", "content": build_sys_prompt(cur_mode)}, {"role": "assistant", "content": f"Compacted context:\n{summ}"}]
             ui_print(f"{C_GREEN}✅ Compacted into BRAIN/KNOWLEDGE_MAP.md:{C_RESET}\n{C_DIM}{summ}{C_RESET}\n")
             continue
+        if low == "/undo":
+            TUI.stop()
+            __import__("research_tools").interactive_undo()
+            TUI.start()
+            last_mode = None
+            continue
         if low == "/settings":
             TUI.stop()
             open_settings_menu()

@@ -59,7 +59,7 @@ def render_prompt_bar(mode_label, active_proc=None, active_task=None):
     print(f"{C_CYAN}❯ [{mode_label}]{C_RESET} Type {C_YELLOW}/help{C_RESET}, {C_YELLOW}/clip{C_RESET}, {C_YELLOW}/dash{C_RESET}, {C_YELLOW}/brain{C_RESET}, {C_YELLOW}/paste{C_RESET} or any {C_GREEN}UCRT64{C_RESET} cmd")
     w = max(50, shutil.get_terminal_size((76, 24)).columns - 1)
     print(f"{C_DIM}{'─'*w}{C_RESET}")
-    print(f"{C_BOLD}[{model}]{C_RESET} {C_GREEN}UCRT64/Win{C_RESET} | {C_MAGENTA}RAM:{ram}{C_RESET} | {loop_str} | {now} | v4.0")
+    print(f"{C_BOLD}[{model}]{C_RESET} {C_GREEN}UCRT64/Win{C_RESET} | {C_MAGENTA}RAM:{ram}{C_RESET} | {loop_str} | {now} | v4.3")
 
 if __name__ == "__main__":
     import sys

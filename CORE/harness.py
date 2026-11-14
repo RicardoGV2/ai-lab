@@ -103,6 +103,7 @@ def handle_slash(cmd):
     elif c == "/settings": __import__("agent_tools").open_settings_menu(); return True
     elif c.startswith("/effort"): __import__("agent_tools").handle_effort_cmd(c[7:]); return True
     elif c.startswith("/verbose"): __import__("agent_tools").handle_verbose_cmd(c[8:]); return True
+    elif c == "/undo": __import__("research_tools").interactive_undo(); return True
     elif c == "/test": __import__('sys_tests').run_system_tests(); return True
     elif c == "/save":
         import version_control; version_control.create_snapshot(); return True
@@ -208,20 +209,12 @@ while True:
     cfg = load_cfg()
     p_cnt = len([l for l in open(os.path.join(BRAIN, "PRINCIPLES.md"), encoding="utf-8") if l.strip().startswith("-")])
     t_cnt = len([l for l in open(os.path.join(BRAIN, "TOOLS_MEMORY.md"), encoding="utf-8") if l.strip().startswith("-")])
-    w = min(78, max(54, shutil.get_terminal_size((76, 24)).columns - 2))
-    title = f" ✳ Welcome to AI-LAB v4.3 | Cerebro Agnóstico ({p_cnt}+{t_cnt} reglas)"
-    print(f"\n{C_CYAN}{C_BOLD}╭{'─'*w}╮")
-    print(f"│{title:<{w}}│")
-    print(f"╰{'─'*w}╯{C_RESET}")
-    print(f"  {C_GREEN}(1){C_RESET} Iniciar Bucle Evolutivo    {C_GREEN}(5){C_RESET} Dashboard y Gráficas (/dash)")
-    print(f"  {C_GREEN}(2){C_RESET} Agente con Herramientas    {C_GREEN}(6){C_RESET} Copiar Reporte (/clip)")
-    print(f"  {C_GREEN}(3){C_RESET} Probar Script Optimizado   {C_GREEN}(7){C_RESET} Cambiar Modelo (/model)")
-    print(f"  {C_GREEN}(4){C_RESET} Investigar en arXiv        {C_GREEN}(8){C_RESET} Nueva Tarea   {C_GREEN}(9){C_RESET} Sync Git (/sync)")
-    print(f"  {C_CYAN}(b){C_RESET} Ver Cerebro (/brain)       {C_YELLOW}(c){C_RESET} Compactar     {C_MAGENTA}(v){C_RESET} Backups (/save)")
-    print(f"  {C_CYAN}(i){C_RESET} Conectar iPad (/ipad)     {C_YELLOW}(t){C_RESET} Test Systems (/test)   {C_RED}(0){C_RESET} Salir\n")
-    statusbar.render_prompt_bar("MAIN MENU", BG_PROC, BG_TASK)
-    try: op = input(f"{C_CYAN}> {C_RESET}").strip()
-    except KeyboardInterrupt: break
+    try:
+        op = __import__("menu_tabs").prompt_with_tabs(statusbar, BG_PROC, BG_TASK)
+    except KeyboardInterrupt:
+        break
+    if op == "u": op = "/undo"
+    elif op == "s": op = "/settings"
     if not op: continue
     if op.startswith("/") and handle_slash(op):
         input(f"{C_DIM}Pulsa Enter para refrescar...{C_RESET}"); continue

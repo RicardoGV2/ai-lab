@@ -108,3 +108,27 @@ def compress_session(messages, trace_notes, call_ollama_fn, cfg):
     if "## " in summary:
         open(KMAP_FILE, "w", encoding="utf-8").write(f"# AI-LAB 长期知识图谱 ({time.strftime('%Y-%m-%d %H:%M')})\n\n{summary}\n")
     return summary
+
+
+def interactive_undo():
+    import subprocess
+    res = subprocess.run(["git", "log", "-n", "7", "--pretty=format:%h|%ad|%s", "--date=format:%m-%d %H:%M"],
+                         cwd=ROOT, capture_output=True, text=True)
+    commits = [l.split("|", 2) for l in res.stdout.strip().splitlines() if "|" in l]
+    if len(commits) < 2:
+        print("\033[93m⚠️  Aún no hay suficientes versiones guardadas. Usa /save para crear puntos de restauración.\033[0m")
+        return
+    print("\n\033[96m⏪ HISTORIAL DE VERSIONES (/undo - Restaurar Checkpoint):\033[0m")
+    for idx, (h, dt, msg) in enumerate(commits):
+        tag = " (ACTUAL)" if idx == 0 else ""
+        print(f"  [{idx}] \033[1m{h}\033[0m ({dt}) - {msg}{tag}")
+    ch = input("\n  Elige el número de versión a restaurar (o Enter para cancelar): ").strip()
+    if not ch.isdigit() or int(ch) < 1 or int(ch) >= len(commits):
+        print("  Cancelado.")
+        return
+    target_hash, target_dt, target_msg = commits[int(ch)]
+    # Crear rama de respaldo antes de revertir por seguridad
+    subprocess.run(["git", "branch", "-f", "safety_before_undo", "HEAD"], cwd=ROOT, capture_output=True)
+    subprocess.run(["git", "reset", "--hard", target_hash], cwd=ROOT, capture_output=True)
+    print(f"\033[92m✅ Restaurado a [{target_hash}] ({target_dt} - {target_msg})!\033[0m")
+    print("\033[2m   (Respaldo de seguridad guardado en rama 'safety_before_undo')\033[0m\n")

@@ -1,5 +1,9 @@
 # 📜 AI-LAB CHANGELOG & BACKUPS
 
+### 🏷️ `snap-20261114-175951` — 2026-11-14 17:59
+- **Nota:** bigChange
+- **Archivos:** `.gitignore, BRAIN/agent_session.log, CORE/agent_tools.py, CORE/harness.py, CORE/research_tools.py, CORE/statusbar.py, CORE/tui_bar.py, .connect_tabs.py, .fix_tabs.py, .fix_ui.py, .patch_menu.py, 288ms], CORE/menu_tabs.py, ailab, ailab.bat, cube_3d.py, prueba0.txt, python, rotacion_cubo.py, rotating_cube.py`
+
 ### 🏷️ `snap-20261114-175016` — 2026-11-14 17:50
 - **Nota:** Changed bar
 - **Archivos:** `.gitignore, BRAIN/CONFIG.env, BRAIN/agent_history.txt, BRAIN/agent_session.log, CORE/agent_tools.py, 288ms], CORE/tui_bar.py, ailab, ailab.bat, cube_3d.py, prueba0.txt, python, rotacion_cubo.py, rotating_cube.py`
