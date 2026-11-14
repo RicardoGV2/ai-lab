@@ -1,6 +1,11 @@
 import os, sys, re, time, shutil, ctypes, threading
 from collections import deque
 
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 C_CYAN, C_GREEN, C_YELLOW, C_RED, C_MAG, C_BOLD, C_DIM, C_RESET = (
     "\033[96m", "\033[92m", "\033[93m", "\033[91m", "\033[95m", "\033[1m", "\033[2m", "\033[0m"
 )
@@ -44,8 +49,8 @@ class BottomBarTUI:
         self.last_h = 0
 
     def _dims(self):
-        sz = shutil.get_terminal_size((110, 30))
-        return max(40, sz.columns), max(10, sz.lines)
+        sz = shutil.get_terminal_size((80, 24))
+        return max(50, sz.columns), max(12, sz.lines)
 
     def _setup_region(self, h):
         if h != self.last_h:
@@ -58,19 +63,24 @@ class BottomBarTUI:
         mode = cfg.get("AGENT_MODE", "chat").upper()
         eff = cfg.get("EFFORT", "low").upper()
         m_col = C_GREEN if mode == "CHAT" else (C_YELLOW if mode == "PLAN" else (C_RED if mode == "FREE" else (C_MAG if mode == "INFINITE" else C_CYAN)))
-        loop_st = f"{C_YELLOW}● BUSY{C_RESET}" if self.busy else f"{C_DIM}○ LOOP:IDLE{C_RESET}"
-        q_st = f" | {C_CYAN}📥 COLA:{len(self.queue)}{C_RESET}" if self.queue else ""
-        act_line = f"{C_YELLOW}* {self.status_note} {C_DIM}(esc to interrupt){C_RESET}" if self.status_note else ""
+        loop_st = f"{C_YELLOW}● BUSY{C_RESET}" if self.busy else f"{C_DIM}○ IDLE{C_RESET}"
+        q_st = f" | {C_CYAN}Q:{len(self.queue)}{C_RESET}" if self.queue else ""
         now = time.strftime("%H:%M:%S")
-        sep = f"{C_DIM}{'─' * (w - 1)}{C_RESET}"
+        sep = f"{C_DIM}{'-' * (w - 1)}{C_RESET}"
+
+        act_raw = f"* {self.status_note} (esc to interrupt)" if self.status_note else ""
+        act_line = f"{C_YELLOW}{act_raw[:w-1]}{C_RESET}" if act_raw else ""
 
         typed = "".join(self.buf)
         max_in = max(10, w - 5)
         vis_typed = typed[-max_in:]
         prompt_line = f"{C_BOLD}{C_CYAN}> {C_RESET}{vis_typed}"
+
         status_line = (
             f"[{C_BOLD}{model}{C_RESET}] {C_GREEN}UCRT64/Win{C_RESET} | {C_MAG}{get_ram_str()}{C_RESET} | "
-            f"{loop_st} | {m_col}[{mode} | effort:{eff}]{C_RESET} | {now} | v4.3{q_st}"
+            f"{loop_st} | {m_col}[{mode}|{eff}]{C_RESET} | {now} | v4.3{q_st}"
+        ) if w >= 86 else (
+            f"[{C_BOLD}{model}{C_RESET}] {C_MAG}{get_ram_str()}{C_RESET} | {loop_st} | {m_col}[{mode}|{eff}]{C_RESET} | {now} | v4.3{q_st}"
         )
 
         sys.stdout.write(
@@ -119,7 +129,7 @@ class BottomBarTUI:
     def start(self):
         self.running = True
         w, h = self._dims()
-        sys.stdout.write(f"\033[2J\033[1;{h - 4}r\033[1;1H")
+        sys.stdout.write(f"\033[2J\033[1;{h - 5}r\033[1;1H")
         self.refresh()
         threading.Thread(target=self._key_loop, daemon=True).start()
         threading.Thread(target=self._clock_loop, daemon=True).start()

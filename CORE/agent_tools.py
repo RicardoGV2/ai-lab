@@ -228,7 +228,7 @@ def call_ollama(messages, cfg, stop_spin=None, phase=None, escape_valley=False):
                 if verbose:
                     if not started_out:
                         if stop_spin: stop_spin.set()
-                        sys.stdout.write(chr(13) + " " * 64 + chr(13))
+                        if TUI: TUI.status_note = ""; TUI.refresh()
                         started_out = True
                     if not in_think:
                         ui_print(f"\n{C_DIM}💭 ", end="")
@@ -249,7 +249,7 @@ def call_ollama(messages, cfg, stop_spin=None, phase=None, escape_valley=False):
                         phase = f"Replying ({len(joined)}c)"
                 if not started_out and verbose:
                     if stop_spin: stop_spin.set()
-                    sys.stdout.write(chr(13) + " " * 64 + chr(13))
+                    if TUI: TUI.status_note = ""; TUI.refresh()
                     started_out = True
                 if in_think:
                     ui_print(f"{C_RESET}\n", end="")
@@ -524,10 +524,11 @@ def main():
                 i = 0
                 while not stop_spin.is_set():
                     el = time.time() - t0
-                    sys.stdout.write(chr(13) + f"{C_CYAN}{frames[i % 10]} {phase[0]} ({cfg.get('EFFORT', 'low')})... {el:.1f}s{C_RESET}   ")
-                    sys.stdout.flush()
+                    if TUI:
+                        TUI.status_note = f"{frames[i % 10]} {phase} ({cfg.get('EFFORT', 'low')})... {el:.1f}s"
+                        TUI.refresh()
                     i += 1
-                    time.sleep(0.12)
+                    time.sleep(0.15)
             th_spin = threading.Thread(target=_spin, daemon=True)
             th_spin.start()
             try:
@@ -535,7 +536,7 @@ def main():
             finally:
                 stop_spin.set()
                 th_spin.join(timeout=0.3)
-                sys.stdout.write(chr(13) + " " * 64 + chr(13))
+                if TUI: TUI.status_note = ""; TUI.refresh()
                 sys.stdout.flush()
 
             if reply == "__CANCELLED__":

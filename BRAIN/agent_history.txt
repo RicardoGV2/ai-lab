@@ -6,3 +6,6 @@ Please create a python script that shows a 3d cube rotating
 Spawn a subagent to research 3D wireframe rendering algorithms on arXiv and GitHub, then build a smooth 3D cube
 /settings
 hola
+Please create a python script that shows a 3d cube rotating
+hola
+a
