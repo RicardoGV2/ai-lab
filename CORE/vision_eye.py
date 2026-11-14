@@ -6,40 +6,39 @@ BRAIN = os.path.join(ROOT, "BRAIN")
 user32 = ctypes.windll.user32
 gdi32 = ctypes.windll.gdi32
 
-def _find_target_window(title_hint=""):
-    target_rect = None
-    fg = user32.GetForegroundWindow()
-    if not title_hint and fg and user32.IsWindowVisible(fg):
-        length = user32.GetWindowTextLengthW(fg)
+def _find_window_by_pid_or_title(target_pid=0, title_hint=""):
+    found = None
+    WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    q = title_hint.lower()
+
+    def cb(hwnd, lparam):
+        nonlocal found
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        length = user32.GetWindowTextLengthW(hwnd)
+        title = ""
         if length > 0:
             buf = ctypes.create_unicode_buffer(length + 1)
-            user32.GetWindowTextW(fg, buf, length + 1)
-            if "AI-LAB" not in buf.value and "Chrome" not in buf.value:
-                rect = wintypes.RECT()
-                user32.GetWindowRect(fg, ctypes.byref(rect))
-                if (rect.right - rect.left) > 80 and (rect.bottom - rect.top) > 80:
-                    return (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, buf.value)
-
-    q = title_hint.lower()
-    WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
-    def cb(hwnd, lparam):
-        nonlocal target_rect
-        if user32.IsWindowVisible(hwnd):
-            length = user32.GetWindowTextLengthW(hwnd)
-            if length > 0:
-                buf = ctypes.create_unicode_buffer(length + 1)
-                user32.GetWindowTextW(hwnd, buf, length + 1)
-                t = buf.value
-                if (q and q in t.lower()) or (not q and any(k in t.lower() for k in ("cubo", "cube", "tk", "3d", "python", "rotat"))):
-                    rect = wintypes.RECT()
-                    user32.GetWindowRect(hwnd, ctypes.byref(rect))
-                    if (rect.right - rect.left) > 80 and (rect.bottom - rect.top) > 80:
-                        target_rect = (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, t)
-                        return False
+            user32.GetWindowTextW(hwnd, buf, length + 1)
+            title = buf.value
+        rect = wintypes.RECT()
+        user32.GetWindowRect(hwnd, ctypes.byref(rect))
+        w, h = rect.right - rect.left, rect.bottom - rect.top
+        if w < 80 or h < 80:
+            return True
+        if target_pid and pid.value == target_pid:
+            found = (rect.left, rect.top, w, h, title or f"PID:{target_pid}")
+            return False
+        if not target_pid and q and q in title.lower():
+            found = (rect.left, rect.top, w, h, title)
+            return False
         return True
+
     user32.EnumWindows(WNDENUMPROC(cb), 0)
-    if target_rect:
-        return target_rect
+    if found:
+        return found
     return (0, 0, user32.GetSystemMetrics(0), user32.GetSystemMetrics(1), "FullScreen")
 
 def _grab_rect(x, y, w, h):
@@ -86,41 +85,51 @@ def _write_png(path, w, h, rgb_bytes):
     ihdr = struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)
     open(path, "wb").write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(bytes(raw_rows), 6)) + chunk(b"IEND", b""))
 
-def capture_and_inspect(title_hint=""):
-    x, y, w, h, win_title = _find_target_window(title_hint)
-    frame1 = _grab_rect(x, y, w, h)
-    time.sleep(0.6)
-    frame2 = _grab_rect(x, y, w, h)
+def capture_and_inspect(title_hint="", target_pid=0):
+    x, y, w, h, win_title = _find_window_by_pid_or_title(target_pid, title_hint)
+    frames = []
+    for _ in range(5):
+        frames.append(_grab_rect(x, y, w, h))
+        time.sleep(0.2)
 
     y_start = 32 if win_title != "FullScreen" and h > 60 else 0
-    min_x, min_y, max_x, max_y = w, h, 0, 0
-    active_px, diff_px = 0, 0
-    for row in range(y_start, h):
-        row_off = row * w * 3
-        for col in range(w):
-            i = row_off + col * 3
-            r, g, b = frame2[i], frame2[i+1], frame2[i+2]
-            if r > 25 or g > 25 or b > 25:
-                active_px += 1
-                if col < min_x: min_x = col
-                if col > max_x: max_x = col
-                if row < min_y: min_y = row
-                if row > max_y: max_y = row
-            if abs(r - frame1[i]) + abs(g - frame1[i+1]) + abs(b - frame1[i+2]) > 30:
-                diff_px += 1
+    total_client = max(1, (w - 16) * max(1, h - y_start - 8))
+    coverages, motion_diffs = [], []
+    global_min_x, global_min_y, global_max_x, global_max_y = w, h, 0, 0
+    clipped_hits = 0
+
+    for idx, fr in enumerate(frames):
+        active_px, diff_px = 0, 0
+        prev = frames[idx - 1] if idx > 0 else None
+        for row in range(y_start, h - 8):
+            row_off = row * w * 3
+            for col in range(8, w - 8):
+                i = row_off + col * 3
+                r, g, b = fr[i], fr[i+1], fr[i+2]
+                if r > 28 or g > 28 or b > 28:
+                    active_px += 1
+                    if col < global_min_x: global_min_x = col
+                    if col > global_max_x: global_max_x = col
+                    if row < global_min_y: global_min_y = row
+                    if row > global_max_y: global_max_y = row
+                    if col <= 14 or col >= w - 14 or row <= y_start + 6 or row >= h - 14:
+                        clipped_hits += 1
+                if prev and (abs(r - prev[i]) + abs(g - prev[i+1]) + abs(b - prev[i+2]) > 35):
+                    diff_px += 1
+        coverages.append((active_px / total_client) * 100.0)
+        if prev:
+            motion_diffs.append((diff_px / total_client) * 100.0)
 
     out_png = os.path.join(BRAIN, "last_screen.png")
-    _write_png(out_png, w, h, frame2)
-    total_client = max(1, w * (h - y_start))
-    pct = (active_px / total_client) * 100.0
-    motion_pct = (diff_px / total_client) * 100.0
-    motion_str = f"MOVIMIENTO ACTIVO ({motion_pct:.2f}% píxeles cambiaron en 0.6s)" if diff_px > 15 else "ESTÁTICO (0% movimiento entre frames)"
-    if active_px == 0:
-        bbox_str = f"Pantalla negra/vacía | {motion_str}"
-    else:
-        bbox_str = f"Objeto en ({min_x},{min_y})->({max_x},{max_y}) [{max_x-min_x}x{max_y-min_y}px, cobertura {pct:.2f}%] | {motion_str}"
-    return out_png, f"Ventana '{win_title}' ({w}x{h}px) -> {bbox_str}"
-
-if __name__ == "__main__":
-    _, rep = capture_and_inspect(sys.argv if len(sys.argv) > 1 else "")
-    print(rep)
+    _write_png(out_png, w, h, frames[-1])
+    avg_cov = sum(coverages) / len(coverages)
+    avg_mot = sum(motion_diffs) / max(1, len(motion_diffs))
+    issues = []
+    if avg_cov < 0.3:
+        issues.append("VACÍA/NEGRA (casi sin píxeles visibles)")
+    if clipped_hits > 25:
+        issues.append("DEMASIADO GRANDE / CORTADA EN LOS BORDES (reduce escala)")
+    if avg_mot < 0.05:
+        issues.append("ESTÁTICA (0% movimiento en 5 frames)")
+    status = "OK_VISUAL" if not issues else "ALERTA_VISUAL: " + "; ".join(issues)
+    return out_png, f"Ventana '{win_title}' ({w}x{h}px) | Cobertura media: {avg_cov:.2f}% | Movimiento (5 frames): {avg_mot:.2f}% | {status}"

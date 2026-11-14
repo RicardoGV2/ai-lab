@@ -1,3 +1,6 @@
+import sys as _sys
+try: _sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception: pass
 import os as _os; _os.environ["PATH"] = r"C:\Users\joseg\AppData\Local\Programs\Microsoft VS Code\bin;" + _os.environ.get("PATH", "")
 import os, sys, json, re, time, threading, subprocess, http.client
 
@@ -176,9 +179,9 @@ def call_ollama(messages, cfg, stop_spin=None, phase=None, escape_valley=False):
     model = cfg.get("MODEL", "qwen3.5-pi")
     effort = cfg.get("EFFORT", "low")
     verbose = (cfg.get("VERBOSE", "off") == "on")
-    think = escape_valley or (effort in ("medium", "high"))
+    think = escape_valley or (not cfg.get("_RETRY") and effort in ("medium", "high"))
     max_think_chars = 2800 if effort == "medium" else 5500
-    num_pred = 1800 if effort == "low" else (3200 if effort == "medium" else 4500)
+    num_pred = 4096 if effort == "low" else 8192
     host = "127." + "0.0.1"
     payload = json.dumps({
         "model": model, "messages": messages, "stream": True, "think": think,
@@ -208,7 +211,7 @@ def call_ollama(messages, cfg, stop_spin=None, phase=None, escape_valley=False):
                 think_buf.append(th)
                 t_len = sum(len(x) for x in think_buf)
                 if phase is not None and not verbose:
-                    phase = f"Razonando ({t_len}c)"
+                    phase = f"Reasoning ({t_len}c)"
                 if verbose:
                     if not started_out:
                         if stop_spin: stop_spin.set()
@@ -219,9 +222,7 @@ def call_ollama(messages, cfg, stop_spin=None, phase=None, escape_valley=False):
                         in_think = True
                     sys.stdout.write(th)
                     sys.stdout.flush()
-                if t_len > max_think_chars and not full_content:
-                    overthought = True
-                    break
+                pass
             if ct:
                 full_content.append(ct)
                 joined = "".join(full_content)
@@ -229,11 +230,11 @@ def call_ollama(messages, cfg, stop_spin=None, phase=None, escape_valley=False):
                     m_fn = re.search(r"FILE:\s*([\w./\\-]+)", joined)
                     m_tl = re.search(r'"tool"\s*:\s*"([^"]+)"', joined)
                     if m_fn:
-                        phase = f"Escribiendo {m_fn.group(1)} ({len(joined)}c)"
+                        phase = f"Writing {m_fn.group(1)} ({len(joined)}c)"
                     elif m_tl:
-                        phase = f"Herramienta {m_tl.group(1)} ({len(joined)}c)"
+                        phase = f"Tool {m_tl.group(1)} ({len(joined)}c)"
                     else:
-                        phase = f"Respondiendo ({len(joined)}c)"
+                        phase = f"Replying ({len(joined)}c)"
                 if not started_out and verbose:
                     if stop_spin: stop_spin.set()
                     sys.stdout.write(chr(13) + " " * 64 + chr(13))
@@ -248,7 +249,7 @@ def call_ollama(messages, cfg, stop_spin=None, phase=None, escape_valley=False):
         log_agent("THINK", "".join(think_buf)[:1200])
     if overthought:
         log_agent("WARN", "Thinking excedio limite; reintentando en modo directo")
-        sys.stdout.write(f"\n{C_CYAN}⚡ [Razonamiento completado -> Generando código directo...]{C_RESET}\n")
+        sys.stdout.write(f"\n{C_CYAN}⚡ [Reasoning complete -> Writing code directly...]{C_RESET}\n")
         sys.stdout.flush()
         fast_cfg = dict(cfg)
         fast_cfg["EFFORT"] = "low"
@@ -305,11 +306,11 @@ def read_input_with_shift_tab():
         cfg = read_cfg()
         m, ef = cfg.get("AGENT_MODE", "chat").upper(), cfg.get("EFFORT", "low").upper()
         m_col = C_GREEN if m == "CHAT" else (C_YELLOW if m == "PLAN" else (C_RED if m == "FREE" else ("\033[95m" if m == "INFINITE" else C_CYAN)))
-        sys.stdout.write(f"{m_col}[{m} | effort:{ef}]{C_RESET} {C_BOLD}Tú > {C_RESET}")
+        sys.stdout.write(f"{m_col}[{m} | effort:{ef}]{C_RESET} {C_BOLD}You > {C_RESET}")
         sys.stdout.flush()
 
     def redraw_line(new_chars, old_len):
-        sys.stdout.write(CR + " " * (old_len + 36) + CR)
+        sys.stdout.write("\x1b[2K" + CR)
         print_prefix()
         sys.stdout.write("".join(new_chars))
         sys.stdout.flush()
@@ -389,28 +390,31 @@ def read_input_with_shift_tab():
             sys.stdout.flush()
 
 def build_sys_prompt(mode):
+    import research_tools
+    kmap = research_tools.load_knowledge_map()
     base = (
-        "Eres el Agente Inteligente de AI-LAB en Windows. Sé conciso, directo y práctico.\n"
-        "REGLAS DE RESPUESTA (sin contradicciones):\n"
-        "1. Si el usuario solo saluda o pregunta algo teórico, responde directamente en texto natural.\n"
-        "2. Si pide CREAR un script o archivo Python, responde DIRECTAMENTE con:\n"
-        "FILE: nombre.py\n"
+        "You are the AI-LAB Autonomous Agent on Windows. Be concise, direct, and practical. Always think and respond in English.\n"
+        f"PERSISTENT KNOWLEDGE MAP (completed work & next paths):\n{kmap}\n\n"
+        "STRICT OUTPUT RULES:\n"
+        "1. For greetings or conceptual questions, reply directly in plain English.\n"
+        "2. To CREATE or EDIT a Python script/file, output ONLY:\n"
+        "FILE: filename.py\n"
         "```python\n"
-        "# código limpio usando solo librería estándar de Python (tkinter + math para gráficos/3D)\n"
+        "# clean code using Python stdlib only (tkinter + math for 3D/GUI)\n"
         "```\n"
-        "3. Si pide ejecutar un comando, abrir una app, leer un archivo o ver la pantalla, responde SOLO con una línea JSON:\n"
-        '{"tool": "run_cmd", "arg": "comando"} | {"tool": "launch_app", "arg": "app"} | {"tool": "read_file", "arg": "ruta"} | {"tool": "see_screen", "arg": "ventana"}\n'
+        "3. To run a command, launch an app, read a file, inspect a window, or research online, output ONLY a single JSON line:\n"
+        '{"tool": "run_cmd", "arg": "cmd"} | {"tool": "launch_app", "arg": "app"} | {"tool": "read_file", "arg": "path"} | {"tool": "see_screen", "arg": "window"} | {"tool": "spawn_subagent", "arg": "web:url | file:path | research:topic"} -> Spawns an isolated worker subagent to read heavy files/webpages/papers and return a compact Chinese digest without bloating your context\n'
     )
     if mode == "plan":
-        return base + "MODO PLAN: Presenta un plan breve en 3 pasos antes de ejecutar."
+        return base + "PLAN MODE: Outline a brief 3-step plan and ask confirmation before executing."
     if mode == "auto":
-        return base + 'MODO AUTO: Si falta una capacidad nueva, usa {"tool": "propose_loop", "arg": "objetivo"}.'
+        return base + 'AUTO MODE: If a new capability is missing, output {"tool": "propose_loop", "arg": "goal"}.'
     if mode == "infinite":
-        return base + "MODO INFINITE: Si un script falla, corrige el error y vuelve a intentarlo con otro enfoque."
+        return base + "INFINITE MODE: Research via search_repos/search_arxiv when useful, verify results, and continuously improve or explore alternative approaches without repeating solved steps."
     return base
 
 def main():
-    print(f"\n{C_BOLD}{C_CYAN}🤖 AI-LAB Agente Inteligente{C_RESET}\n{C_DIM}   Shift+Tab (o Tab vacío): cambiar [CHAT | PLAN | FREE | AUTO | INFINITE] | /settings | /effort | /wrong | 'salir'{C_RESET}\n")
+    print(f"\n{C_BOLD}{C_CYAN}🤖 AI-LAB Autonomous Agent{C_RESET}\n{C_DIM}   Shift+Tab: switch [CHAT | PLAN | FREE | AUTO | INFINITE] | /settings | /effort | /compress | /agentlog | 'exit'{C_RESET}\n")
     last_mode, messages = None, []
     while True:
         cfg = read_cfg()
@@ -421,7 +425,19 @@ def main():
         except (EOFError, KeyboardInterrupt): print(); break
         if not user_in: continue
         low = user_in.lower()
-        if low in ("salir", "exit", "quit"): break
+        if low in ("salir", "exit", "quit"):
+            if len(messages) > 2:
+                import research_tools
+                print(f"{C_CYAN}🗜️  Guardando aprendizaje de sesión en BRAIN/KNOWLEDGE_MAP.md...{C_RESET}")
+                research_tools.compress_session(messages, [], call_ollama, cfg)
+            break
+        if low == "/compress":
+            import research_tools
+            print(f"{C_CYAN}🗜️  Comprimiendo sesión en BRAIN/KNOWLEDGE_MAP.md...{C_RESET}")
+            summ = research_tools.compress_session(messages, [], call_ollama, cfg)
+            messages = [{"role": "system", "content": build_sys_prompt(cur_mode)}, {"role": "assistant", "content": f"Contexto comprimido:\n{summ}"}]
+            print(f"{C_GREEN}✅ Memoria comprimida y guardada para futuras sesiones:{C_RESET}\n{C_DIM}{summ}{C_RESET}\n")
+            continue
         if low == "/settings": open_settings_menu(); last_mode = None; continue
         if low == "/agentlog":
             txt = open(AGENT_LOG, encoding="utf-8").read()[-4000:] if os.path.exists(AGENT_LOG) else "(sin log aún)"
@@ -439,11 +455,20 @@ def main():
         last_err = ""
         escape_valley = False
         max_iters = 999 if cur_mode == "infinite" else 2
+        trace_notes = []
         for attempt in range(max_iters):
+            ctx_chars = sum(len(m.get("content", "")) for m in messages)
+            if ctx_chars > 6500:
+                import research_tools
+                print(f"{C_CYAN}🗜️  [AUTO-COMPRESS] Contexto ({ctx_chars}c) compactado en BRAIN/KNOWLEDGE_MAP.md...{C_RESET}")
+                summ = research_tools.compress_session(messages, trace_notes, call_ollama, cfg)
+                messages = [{"role": "system", "content": build_sys_prompt(cur_mode)}, {"role": "user", "content": user_in}, {"role": "assistant", "content": f"Resumen acumulado:\n{summ}"}]
+            if len(messages) > 5:
+                messages = [messages] + messages[-4:]
             if cur_mode == "infinite" and attempt > 0:
                 print(f"\033[95m♾️  [INFINITE intento #{attempt + 1}{' | ANTI-VALLEY' if escape_valley else ''}]{C_RESET}")
             stop_spin = threading.Event()
-            phase = ["Pensando"]
+            phase = ["Thinking"]
             def _spin():
                 frames = ("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
                 t0 = time.time()
@@ -486,14 +511,16 @@ def main():
                         if proc.poll() is not None and proc.returncode != 0:
                             err = proc.stderr.read().strip() or f"Exit code {proc.returncode}"
                             print(f"{C_RED}❌ Error al ejecutar {fname}: {err}{C_RESET}")
-                            if err == last_err:
+                            trace_notes.append(f"Error: {err.splitlines()[-1] if err.splitlines() else err}")
+                            err_sig = err.splitlines()[-1] if err.splitlines() else err
+                            if err_sig == last_err:
                                 if cur_mode != "infinite":
                                     print(f"{C_YELLOW}⏹️  Error repetido. Deteniendo (usa Shift+Tab -> INFINITE para insistir hasta lograrlo).{C_RESET}\n")
                                     break
                                 escape_valley = True
                                 messages.extend([{"role": "assistant", "content": reply}, {"role": "user", "content": f"MISMO ERROR REPETIDO:\n{err}\nEstás en un valle local. Descarta el enfoque anterior y reescribe FILE: {fname} desde cero con una estructura de datos distinta y simple."}])
                                 continue
-                            last_err = err
+                            last_err = err_sig
                             escape_valley = False
                             bad_snippet = ""
                             m_ln = re.search(r"line (\d+)", err)
@@ -505,14 +532,22 @@ def main():
                             messages.extend([{"role": "assistant", "content": reply}, {"role": "user", "content": f"FALLÓ al abrir {fname} con este error:\n{err}{bad_snippet}\nCorrige esa línea y devuelve el código completo limpio en FILE: {fname}."}])
                             continue
                         import vision_eye
-                        _, v_obs = vision_eye.capture_and_inspect("")
+                        _, v_obs = vision_eye.capture_and_inspect("", target_pid=proc.pid)
                         print(f"{C_CYAN}👁️  [AUTO-VISIÓN] {v_obs}{C_RESET}")
-                        if "cobertura 0." in v_obs or "totalmente negra" in v_obs:
-                            messages.extend([{"role": "assistant", "content": reply}, {"role": "user", "content": f"Resultado visual: {v_obs}\nLa ventana casi no muestra nada dibujado. Corrige la proyección/escala en FILE: {fname} para que el objeto se vea grande y centrado."}])
+                        trace_notes.append(v_obs)
+                        if "ALERTA_VISUAL:" in v_obs:
+                            proc.terminate()
+                            messages.extend([{"role": "assistant", "content": reply}, {"role": "user", "content": f"Visual inspection (5 frames): {v_obs}\nFix the scale, centering, or animation loop in FILE: {fname} so it fits cleanly inside the window and animates smoothly."}])
                             continue
-                        print(f"{C_GREEN}✅ Ventana verificada visualmente y funcionando!{C_RESET}\n")
+                        print(f"{C_GREEN}✅ Window visually verified and working!{C_RESET}\n")
                         messages.append({"role": "assistant", "content": reply})
-                        if steps_used >= 3: distill_long_task_lesson(user_in, steps_used, cfg)
+                        if steps_used >= 2: distill_long_task_lesson(user_in, steps_used, cfg, trace_notes)
+                        if cur_mode == "infinite":
+                            proc.terminate()
+                            print(f"\033[95m♾️  [INFINITE -> MEJORA CONTINUA] Analizando cómo optimizar, enriquecer o investigar mejoras para '{fname}' (pulsa ESC para detener)...{C_RESET}\n")
+                            messages.append({"role": "user", "content": f"La versión actual de {fname} ya funciona y pasó la verificación visual ({v_obs}). Ahora actúa como investigador autónomo: propón e implementa una mejora significativa (ej. mejor proyección 3D, sombreado/colores, fluidez FPS, controles o mayor precisión) en FILE: {fname}."})
+                            time.sleep(1.0)
+                            continue
                         break
                     res = subprocess.run([sys.executable, tmp_py], cwd=ROOT, capture_output=True, text=True, timeout=20)
                     obs = (res.stdout + res.stderr).strip() or "(código Python ejecutado con éxito)"
@@ -564,6 +599,16 @@ def main():
                         if tname == "see_screen":
                             import vision_eye
                             _, obs = vision_eye.capture_and_inspect(targ)
+                        elif tname == "search_arxiv":
+                            import research_tools
+                            obs = research_tools.search_arxiv(targ)
+                        elif tname == "search_repos":
+                            import research_tools
+                            obs = research_tools.search_repos(targ)
+                        elif tname == "spawn_subagent":
+                            import research_tools
+                            print(f"{C_CYAN}🤖 [SUBAGENT SPAWNED] Delegating '{targ}' in isolated context...{C_RESET}")
+                            obs = research_tools.run_subagent(targ, call_ollama, cfg)
                         elif tname == "launch_app":
                             obs = tool_launch_app(targ)
                         elif tname == "run_cmd":
@@ -580,7 +625,7 @@ def main():
                     if "[AUTO-VISIÓN]" in str(obs) and ("cobertura 0." in str(obs) or "totalmente negra" in str(obs)):
                         messages.extend([{"role": "assistant", "content": j_str}, {"role": "user", "content": f"Resultado visual: {obs}\n¡ALERTA VISUAL! La ventana casi no muestra nada dibujado (solo un punto o pantalla vacía). Lee el script con read_file, corrige la proyección/escala/coordenadas para que el objeto se vea grande y centrado, guarda con write_file y vuelve a ejecutarlo."}])
                     elif tname == "write_file" and str(obs).startswith("OK:"):
-                        messages.extend([{"role": "assistant", "content": j_str}, {"role": "user", "content": f"Resultado: {obs}\nAhora ejecuta el archivo recién creado usando run_cmd para verificar que corre sin errores y mostrarlo al usuario."}])
+                        messages.extend([{"role": "assistant", "content": j_str}, {"role": "user", "content": f"Resultado: {obs}\nNow run the newly created file with run_cmd to verify it executes cleanly."}])
                     elif "Traceback" in str(obs) or "ModuleNotFoundError" in str(obs) or "Error:" in str(obs):
                         messages.extend([{"role": "assistant", "content": j_str}, {"role": "user", "content": f"FALLÓ con este error:\n{obs}\nNO te rindas. Corrige el archivo con write_file usando SOLO Python estándar y vuelve a ejecutarlo."}])
                     else:
@@ -595,8 +640,13 @@ def main():
                 break
             print(f"{C_GREEN}AI > {C_RESET}{reply}\n")
             messages.append({"role": "assistant", "content": reply})
-            if steps_used >= 3:
-                distill_long_task_lesson(user_in, steps_used, cfg)
+            if steps_used >= 2:
+                distill_long_task_lesson(user_in, steps_used, cfg, trace_notes)
+            if cur_mode == "infinite" and steps_used > 0:
+                print(f"\033[95m♾️  [INFINITE -> INVESTIGACIÓN AUTÓNOMA] Buscando el siguiente nivel de mejora (pulsa ESC para parar)...{C_RESET}\n")
+                messages.append({"role": "user", "content": "Ya completaste el paso anterior. Investiga qué punto débil tiene la solución actual y aplica la siguiente mejora concreta."})
+                time.sleep(1.0)
+                continue
             break
 
 if __name__ == "__main__":

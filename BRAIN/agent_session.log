@@ -415,3 +415,553 @@ class Cube3D(tk.Canvas):
         rot_y = [
             (cos_y, 0, sin_y),
             (0, 1, 0),
+[16:45:19] [USER:chat] Please create a python script that shows a 3d cube rotating
+[16:47:23] [THINK] Thinking Process:
+
+1.  **Analyze the Request:**
+    *   User wants a Python script to show a 3D rotating cube.
+    *   Constraint Checklist & Confidence Score:
+        1.  Be concise, direct, practical? Yes.
+        2.  If user asks for a Python script/file, respond DIRECTLY with FILE: name.py and code block using only standard library (tkinter + math)? Yes.
+        3.  No contradictions? Yes.
+    *   Confidence Score: 100%.
+
+2.  **Determine the Output Format:**
+    *   The user explicitly asked to "create a python script".
+    *   According to Rule #2, I must output `FILE: nombre.py` followed by a code block containing Python code using only standard libraries (specifically mentioned `tkinter + math`).
+
+3.  **Draft the Code:**
+    *   Need a 3D cube visualization in Tkinter.
+    *   Standard library for GUI is `tkinter`.
+    *   Standard library for math is `math`.
+    *   Implementing a true 3D rotation in pure Python/Tkinter without external libraries (like Pygame or OpenGL bindings) is complex but doable using basic geometry and drawing lines/quads.
+    *   However, Tkinter's canvas (`tk.Canvas`) supports polygons. I can draw the cube faces as polygons based on projected coordi
+[16:47:23] [WARN] Thinking excedio limite; reintentando en modo directo
+[16:51:15] [REPLY] FILE: cube_3d.py
+```python
+import tkinter as tk
+from math import sin, cos, radians
+
+class Cube3D:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Rotating 3D Cube")
+        
+        # Configuración de la ventana
+        width, height = 800, 600
+        self.canvas = tk.Canvas(root, width=width, height=height, bg='black')
+        self.canvas.pack()
+        
+        # Posición inicial del cubo (centro)
+        cx, cy = width // 2, height // 2
+        
+        # Definición de vértices del cubo (coordenadas x, y, z)
+        # Escala: 100 unidades por lado
+        vertices = [
+            (-100, -100, -100), (100, -100, -100), (100, 100, -100), (-100, 100, -100), # Frente
+            (-100, -100, 100), (100, -100, 100), (100, 100, 100), (-100, 100, 100),   # Atrás
+        ]
+        
+        # Colores para los lados del cubo
+        colors = [
+            ('#FF5733', '#C70039'), ('#33FF57', '#33C700'), ('#3357FF', '#0033C7'), 
+            ('#F033FF', '#C700FF'), ('#FF33A8', '#FF33C7'), ('#33FFF5', '#00CCCC')
+        ]
+        
+        # Dibujar el cubo estático inicialmente
+        self.draw_cube(cx, cy)
+        
+    def draw_cube(self, cx, cy):
+        """Dibuja las líneas y caras del cubo en 2D"""
+        for i in range(8):
+            x1, y1, z1 = vertices[i]
+            # Encontrar el siguiente vértice conectado (simplificado para visualización)
+            # Conectamos vértices adyacentes por coordenadas
+            next_idx = (i + 1) % 8 if i <
+[16:56:32] [THINK] The user is asking me to fix a Python script that failed to run due to an uninitialized variable 'vertices'. This is a simple debugging task where I need to correct the order of initialization in the code.
+
+Looking at the error, the issue is that in the `draw_cube` method, the `vertices` list is being used but it was defined AFTER the class methods were called (in the `__init__` method). The vertices need to be defined before they're used in the draw_cube method.
+
+I need to:
+1. Fix the variable scope issue by moving the vertices definition before where it's used
+2. Keep the code clean and working with only standard Python libraries (tkinter)
+3. Return ONLY the FILE block as per my rules when creating a script
+
+Let me correct this properly:
+[16:56:32] [REPLY] FILE: cube_3d.py
+```python
+import tkinter as tk
+from math import sin, cos, radians
+
+class Cube3D:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Rotating 3D Cube")
+        
+        # Configuración de la ventana
+        width, height = 800, 600
+        self.canvas = tk.Canvas(root, width=width, height=height, bg='black')
+        self.canvas.pack()
+        
+        # Posición inicial del cubo (centro)
+        cx, cy = width // 2, height // 2
+        
+        # Definición de vértices del cubo (coordenadas x, y, z)
+        vertices = [
+            (-100, -100, -100), (100, -100, -100), (100, 100, -100), (-100, 100, -100), # Frente
+            (-100, -100, 100), (100, -100, 100), (100, 100, 100), (-100, 100, 100)   # Atrás
+        ]
+        
+        # Colores para los lados del cubo
+        colors = [
+            ('#FF5733', '#C70039'), ('#33FF57', '#33C700'), ('#3357FF', '#0033C7'), 
+            ('#F033FF', '#C700FF'), ('#FF33A8', '#FF33C7'), ('#33FFF5', '#00CCCC')
+        ]
+        
+        # Dibujar el cubo estático inicialmente
+        self.draw_cube(cx, cy)
+        
+    def draw_cube(self, cx, cy):
+        """Dibuja las líneas y caras del cubo en 2D"""
+        for i in range(8):
+            x1, y1, z1 = vertices[i]
+            
+            # Proyección simple para simular profundidad
+            # Rotación en Z (eje vertical de la pantalla)
+            angle_z = radians(45)
+            cos_z = cos(angle_z)
+            sin_z = sin(angle_z)
+    
+[17:00:18] [USER:chat] Please create a python script that shows a 3d cube rotating
+[17:02:18] [THINK] Thinking Process:
+
+1.  **Analyze the Request:**
+    *   User wants a Python script to show a 3D rotating cube.
+    *   Constraint Checklist & Confidence Score:
+        1.  Be concise, direct, practical? Yes.
+        2.  If user asks to CREATE a script or file Python, respond DIRECTLY with FILE: name.py and code block using only standard library (tkinter + math)? Yes.
+    *   Confidence Score: 100%.
+
+2.  **Determine the Output Format:**
+    *   The rule states: "Si pide CREAR un script o archivo Python, responde DIRECTAMENTE con: FILE: nombre.py ```python # código limpio usando solo librería estándar de Python (tkinter + math para gráficos/3D) ```"
+    *   I need to create a script that renders a 3D cube. Since the constraint specifies "only standard library (tkinter + math)", I should use `tkinter` for the GUI and implement basic 3D projection logic using `math`.
+
+3.  **Drafting the Code:**
+    *   Library: `tkinter` is available in standard Python.
+    *   Logic: Need a canvas, define cube vertices, apply rotation matrices (x, y, z), project to 2D screen coordinates.
+    *   Animation loop: Use `root.after()` or `threading` with `time.sleep`.
+    *   Drawing: Draw lines connecting
+[17:02:18] [WARN] Thinking excedio limite; reintentando en modo directo
+[17:04:39] [REPLY] FILE: cube_3d.py
+```python
+import tkinter as tk
+from math import sin, cos, pi
+
+class Cube3D:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Rotating 3D Cube")
+        
+        # Configuración de la ventana
+        self.canvas_width = 400
+        self.canvas_height = 400
+        self.center_x = self.canvas_width // 2
+        self.center_y = self.canvas_height // 2
+        
+        self.canvas = tk.Canvas(self.root, width=self.canvas_width, height=self.canvas_height, bg='black')
+        self.canvas.pack()
+        
+        # Definición de vértices del cubo (coordenadas en espacio 3D)
+        # Escala inicial para que quepa en la pantalla
+        scale = 100 
+        vertices = [
+            (-scale, -scale, -scale),
+            (scale, -scale, -scale),
+            (scale, scale, -scale),
+            (-scale, scale, -scale),
+            (-scale, -scale, scale),
+            (scale, -scale, scale),
+            (scale, scale, scale),
+            (-scale, scale, scale)
+        ]
+        
+        # Definición de aristas (conexiones entre vértices)
+        edges = [
+            (0, 1), (1, 2), (2, 3), (3, 0), # Base inferior
+            (4, 5), (5, 6), (6, 7), (7, 4), # Top superior
+            (0, 4), (1, 5), (2, 6), (3, 7)  # Verticales
+        ]
+        
+        self.canvas.create_line(0, 0, 0, 0) # Placeholder para evitar errores de Canvas
+        
+        # Variables de rotación
+        self.angle_x = 0.2
+        self.angle_y = 0.1
+        
+       
+[17:08:54] [THINK] The user is reporting an IndexError in their Python script. The error occurs at line 64 in the draw_cube function when trying to access vertices[i][0], but it's saying "list index out of range". Looking at the code, I can see the issue - there are only 8 vertices defined (indices 0-7), but somewhere in the logic, we might be trying to access an index beyond that.
+
+However, looking at the actual error trace:
+```
+File "C:\Users\joseg/ai-lab\cube_3d.py", line 64, in draw_cube
+    v1 = rotate_point(vertices[i][0], vertices[i][1], vertices[i][2])
+                      ~~~~~~~~^^^
+IndexError: list index out of range
+```
+
+This suggests that for some iteration, `i` is trying to access an index >= 8. But the loop should be running from 0 to len(edges)-1 = 7 (since there are 8 edges).
+
+Wait, I see another issue - in the draw_cube function, we're calling rotate_point with vertices[i], but then also accessing vertices[edges[i][0]]. This suggests we need to fix the logic.
+
+The actual problem is that the error message says line 64 has `v1 = rotate_point(vertices[i][0], vertices[i][1], vertices[i][2])` - this will work fine for i in range(8). But then it also accesses edges which should be fine t
+[17:08:54] [REPLY] FILE: cube_3d.py
+```python
+import tkinter as tk
+from math import sin, cos, pi
+
+class Cube3D:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Rotating 3D Cube")
+        
+        # Configuración de la ventana
+        self.canvas_width = 400
+        self.canvas_height = 400
+        self.center_x = self.canvas_width // 2
+        self.center_y = self.canvas_height // 2
+        
+        self.canvas = tk.Canvas(self.root, width=self.canvas_width, height=self.canvas_height, bg='black')
+        self.canvas.pack()
+        
+        # Definición de vértices del cubo (coordenadas en espacio 3D)
+        scale = 100 
+        vertices = [
+            (-scale, -scale, -scale),
+            (scale, -scale, -scale),
+            (scale, scale, -scale),
+            (-scale, scale, -scale),
+            (-scale, -scale, scale),
+            (scale, -scale, scale),
+            (scale, scale, scale),
+            (-scale, scale, scale)
+        ]
+        
+        # Definición de aristas (conexiones entre vértices)
+        edges = [
+            (0, 1), (1, 2), (2, 3), (3, 0),
+            (4, 5), (5, 6), (6, 7), (7, 4),
+            (0, 4), (1, 5), (2, 6), (3, 7)
+        ]
+        
+        # Variables de rotación
+        self.angle_x = 0.2
+        self.angle_y = 0.1
+        
+        # Función para rotar un punto 3D
+        def rotate_point(x, y, z):
+            # Rotación alrededor del eje X
+            x_new = x
+            z_new = z * cos(self.angle_x) - y * sin(self.angle_
+[17:15:44] [USER:chat] Please create a python script that shows a 3d cube rotating
+[17:17:56] [THINK] Thinking Process:
+
+1.  **Analyze the Request:**
+    *   User wants a Python script to show a rotating 3D cube.
+    *   Constraint Checklist & Confidence Score:
+        1.  Be concise, direct, practical? Yes.
+        2.  If user asks for a Python script/file, respond DIRECTLY with FILE: name.py and code block using only standard library (tkinter + math)? Yes.
+        3.  No contradictions in rules? Yes.
+    *   Confidence Score: 100%.
+
+2.  **Determine the Output Format:**
+    *   Rule 2 applies: "Si pide CREAR un script o archivo Python, responde DIRECTAMENTE con: FILE: nombre.py ```python # código limpio usando solo librería estándar de Python (tkinter + math para gráficos/3D) ```"
+    *   I need to write a script that renders a 3D cube using only standard libraries. `tkinter` is the main GUI library in Python's standard library, but it doesn't do 3D natively. However, I can use `tkinter` with some math or use `matplotlib` (not standard) or `pygame` (not standard).
+    *   Wait, the rule says "usando solo librería estándar de Python (tkinter + math para gráficos/3D)". This implies I should try to simulate 3D using `tkinter` and basic math (projection), as external libraries like `n
+[17:17:56] [WARN] Thinking excedio limite; reintentando en modo directo
+[17:19:48] [REPLY] FILE: rotacion_cubo.py
+```python
+import tkinter as tk
+from math import sin, cos, radians
+
+class RotacionCubo(tk.Canvas):
+    def __init__(self, master, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+        
+        # Configuración inicial
+        self.angle_x = 0.5
+        self.angle_y = 0.5
+        
+        # Dibujar el cubo
+        self.dibujar_cubo()
+        
+    def dibujar_cubo(self):
+        # Definir vértices del cubo (coordenadas normalizadas entre -1 y 1)
+        vertices = [(-1, -1, -1), (-1, -1, 1), (-1, 1, 1), (1, 1, 1), 
+                    (1, 1, -1), (1, -1, -1), (1, -1, 1), (-1, -1, -1)]
+        
+        # Definir aristas conectando los vértices
+        aristas = [
+            ((0,1), (2,3)), ((0,2), (1,3)), ((0,4), (1,5)), ((0,6), (2,7)), 
+            ((1,5), (3,6)), ((1,6), (2,7)), ((3,4), (5,6)), ((3,7), (4,6))
+        ]
+        
+        # Función para rotar un punto alrededor del eje X
+        def rot_x(p, ang):
+            x, y, z = p
+            return (x, y * cos(ang) - z * sin(ang), y * sin(ang) + z * cos(ang))
+        
+        # Función para rotar un punto alrededor del eje Y
+        def rot_y(p, ang):
+            x, y, z = p
+            return (x * cos(ang) + z * sin(ang), y, -x * sin(ang) + z * cos(ang))
+        
+        # Rotar todos los vértices
+        vertices_rotados = []
+        for v in vertices:
+            v_rot_x = rot_x(v, radians(self.angle_x))
+            v_rot_y = rot_y(v_rot_x[0], radians(self.angle_y))
+         
+[17:22:03] [REPLY] FILE: rotacion_cubo.py
+```python
+import tkinter as tk
+from math import sin, cos, radians
+
+class RotacionCubo(tk.Canvas):
+    def __init__(self, master, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+        
+        # Configuración inicial
+        self.angle_x = 0.5
+        self.angle_y = 0.5
+        
+        # Dibujar el cubo
+        self.dibujar_cubo()
+        
+    def dibujar_cubo(self):
+        # Definir vértices del cubo (coordenadas normalizadas entre -1 y 1)
+        vertices = [(-1, -1, -1), (-1, -1, 1), (-1, 1, 1), (1, 1, 1), 
+                    (1, 1, -1), (1, -1, -1), (1, -1, 1), (-1, -1, -1)]
+        
+        # Definir aristas conectando los vértices (índices de la lista vertices)
+        aristas = [
+            ((0,1), (2,3)), ((0,2), (1,3)), ((0,4), (1,5)), ((0,6), (2,7)), 
+            ((1,5), (3,6)), ((1,6), (2,7)), ((3,4), (5,6)), ((3,7), (4,6))
+        ]
+        
+        # Función para rotar un punto alrededor del eje X
+        def rot_x(p, ang):
+            x, y, z = p
+            return (x, y * cos(ang) - z * sin(ang), y * sin(ang) + z * cos(ang))
+        
+        # Función para rotar un punto alrededor del eje Y
+        def rot_y(p, ang):
+            x, y, z = p
+            return (x * cos(ang) + z * sin(ang), y, -x * sin(ang) + z * cos(ang))
+        
+        # Rotar todos los vértices
+        vertices_rotados = []
+        for v in vertices:
+            # Aplicar rotación X primero
+            v_rot_x = rot_x(v, radians(self.angle_x))
+
+[17:22:23] [USER:chat] abrelo de nuevo porfavor
+[17:22:23] [REPLY] 
+[17:24:08] [USER:chat] Please create a python script that shows a 3d cube rotating
+[17:29:16] [THINK] Thinking Process:
+
+1.  **Analyze the Request:**
+    *   User wants a Python script that shows a 3D cube rotating.
+    *   Constraint Checklist & Confidence Score:
+        1.  Be concise, direct, and practical? Yes.
+        2.  If user asks to CREATE a script or file Python, respond DIRECTLY with FILE: name.py and code block? Yes.
+        3.  Use only standard Python libraries (tkinter + math for graphics/3D)? Yes.
+    *   Confidence Score: 100%.
+
+2.  **Verify Constraints:**
+    *   The user is asking to "create a python script".
+    *   This triggers Rule #2: Respond DIRECTLY with `FILE: nombre.py` and the code block.
+    *   The code must use standard libraries only (no numpy, matplotlib, pygame, etc.). `tkinter` is allowed for GUI, but 3D rendering in pure Python standard library without external dependencies like `numpy` or `matplotlib` is tricky. However, I can use `tkinter` with a custom drawing loop using `canvas.create_polygon` and basic math (sine/cosine) to simulate rotation.
+    *   Wait, does `tkinter` support 3D? Not natively. It's 2D canvas. To make it look like 3D, I need to project 3D coordinates to 2D using perspective projection formulas.
+    *   Is there a better 
+[17:29:16] [REPLY] FILE: cube_3d.py
+```python
+import tkinter as tk
+import math
+
+class Cube3D:
+    def __init__(self, root):
+        self.root = root
+        self.canvas = tk.Canvas(root, width=400, height=400, bg='black')
+        self.canvas.pack()
+        
+        # Vertices (x, y, z) - scale by 100 for visibility
+        self.vertices = [
+            (-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
+            (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1)
+        ] * 100
+        
+        # Edges to draw
+        self.edges = [
+            (0, 1), (1, 2), (2, 3), (3, 0),
+            (4, 5), (5, 6), (6, 7), (7, 4),
+            (0, 4), (1, 5), (2, 6), (3, 7)
+        ]
+        
+        self.angle_x = 0
+        self.angle_y = 0
+        
+    def rotate(self):
+        # Rotation matrices
+        cos_x, sin_x = math.cos(self.angle_x), math.sin(self.angle_x)
+        cos_y, sin_y = math.cos(self.angle_y), math.sin(self.angle_y)
+        
+        new_verts = []
+        for v in self.vertices:
+            x, y, z = v
+            
+            # Rotate around X axis
+            y_new = y * cos_x - z * sin_x
+            z_new = y * sin_x + z * cos_x
+            
+            # Rotate around Y axis
+            x_new = x * cos_y - z_new * sin_y
+            z_final = x * sin_y + z_new * cos_y
+            
+            new_verts.append((x_new, y_new, z_final))
+        
+        return new_verts
+
+    def project(self, verts):
+        # Perspective projection
+        scale = 200
+        fov = 300
+        
+        
+[17:32:01] [REPLY] FILE: cube_3d.py
+```python
+import tkinter as tk
+import math
+
+class Cube3D:
+    def __init__(self, root):
+        self.root = root
+        self.canvas = tk.Canvas(root, width=1536, height=864, bg='black')
+        self.canvas.pack()
+        
+        # Vertices (x, y, z) - unit cube centered at 0
+        self.vertices = [
+            (-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
+            (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1)
+        ]
+        
+        # Edges to draw
+        self.edges = [
+            (0, 1), (1, 2), (2, 3), (3, 0),
+            (4, 5), (5, 6), (6, 7), (7, 4),
+            (0, 4), (1, 5), (2, 6), (3, 7)
+        ]
+        
+        self.angle_x = 0.5
+        self.angle_y = 0.5
+        
+    def rotate(self):
+        cos_x, sin_x = math.cos(self.angle_x), math.sin(self.angle_x)
+        cos_y, sin_y = math.cos(self.angle_y), math.sin(self.angle_y)
+        
+        new_verts = []
+        for v in self.vertices:
+            x, y, z = v
+            
+            # Rotate around X axis
+            y_new = y * cos_x - z * sin_x
+            z_new = y * sin_x + z * cos_x
+            
+            # Rotate around Y axis
+            x_new = x * cos_y - z_new * sin_y
+            z_final = x * sin_y + z_new * cos_y
+            
+            new_verts.append((x_new, y_new, z_final))
+        
+        return new_verts
+
+    def project(self, verts):
+        # Improved perspective projection to fit large canvas
+        fov = 1000 
+        scale = 2.5 # Scale factor for 
+[17:32:31] [USER:chat] Please create a python script that shows a 3d cube rotating
+[17:32:54] [ESC] Cancelado por el usuario
+[17:34:39] [USER:chat] Please create a python script that shows a 3d cube rotating
+[17:37:09] [THINK] The user wants me to create a Python script that displays a rotating 3D cube. I need to use tkinter for the GUI and math library for 3D calculations, as specified in my rules.
+
+Let me create a clean, working script that:
+1. Uses tkinter's Canvas widget for rendering
+2. Implements basic 3D projection
+3. Shows a cube rotating on its axis
+4. Uses only Python stdlib (tkinter + math)
+
+I'll output the file creation as specified in my rules.
+[17:37:09] [REPLY] FILE: rotating_cube.py
+```python
+import tkinter as tk
+from math import sin, cos, pi
+
+class RotatingCube3D:
+    def __init__(self, root):
+        self.root = root
+        self.canvas = tk.Canvas(root, width=400, height=400, bg='black')
+        self.canvas.pack()
+        
+        # Cube vertices (x,y,z) - 8 corners
+        self.vertices = [
+            (-1,-1,-1), (1,-1,-1), (1,1,-1), (-1,1,-1),
+            (-1,-1,1), (1,-1,1), (1,1,1), (-1,1,1)
+        ]
+        
+        # Edges connecting vertices
+        self.edges = [
+            (0,1), (1,2), (2,3), (3,0),  # back face
+            (4,5), (5,6), (6,7), (7,4),  # front face
+            (0,4), (1,5), (2,6), (3,7)   # connecting edges
+        ]
+        
+        self.angle = 0
+        
+    def project_3d(self, x, y, z):
+        """Simple perspective projection"""
+        fov = 300
+        scale = 1 / (1 + z * 0.2)
+        return x * scale * fov, y * scale * fov
+    
+    def draw_cube(self):
+        self.canvas.delete("all")
+        
+        # Draw edges with rotation
+        for i, j in self.edges:
+            v1 = self.vertices[i]
+            v2 = self.vertices[j]
+            
+            x1, y1 = self.project_3d(v1[0], v1[1], v1[2])
+            x2, y2 = self.project_3d(v2[0], v2[1], v2[2])
+            
+            # Rotate around Y axis
+            rad = self.angle * pi / 180
+            rx1 = x1 * cos(rad) - z1 * sin(rad)
+            ry1 = y1
+            rz1 = x1 * sin(rad) + z1 * cos(rad)
+            
+            rx2 = x2 *
+[17:39:11] [USER:chat] Spawn a subagent to research 3D wireframe rendering algorithms on arXiv and GitHub, then build a smooth 3D cube
+[17:39:31] [THINK] The user wants me to:
+1. Spawn a subagent to research 3D wireframe rendering algorithms on arXiv and GitHub
+2. Build a smooth 3D cube using Python (tkinter + math for GUI)
+
+I need to follow the output rules strictly - spawn a subagent with the web URL and file path, then I'll wait for results before building the script.
+
+Let me spawn the subagent first as instructed.
+[17:39:31] [REPLY] {"tool": "spawn_subagent", "arg": "web:arxiv.org | research:3D wireframe rendering algorithms"}
+[17:39:49] [REPLY] - 目标：arxiv.org 检索 3D 线框渲染算法
+- 错误：`urlopen` 解析失败，未知 URL 类型 `arxiv.org | research`
+- 原因：URL 格式缺失协议前缀（如 `https://`）或路径结构错误
+- 修正：构造标准请求 `GET https://arxiv.org/search/?query=3D+wireframe+rendering&searchtype=all`
+- 建议：Orchestrator 需验证 URL 拼接逻辑并添加 HTTP 协议头
+[17:39:58] [REPLY] {"tool": "run_cmd", "arg": "curl -s \"https://arxiv.org/search/?query=3D+wireframe+rendering&searchtype=all\" | grep -oP 'title.*\n' | head -5"}
