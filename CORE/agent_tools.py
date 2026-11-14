@@ -6,8 +6,14 @@ BRAIN = os.path.join(ROOT, "BRAIN")
 TASKS = os.path.join(ROOT, "TASKS")
 CFG_FILE = os.path.join(BRAIN, "CONFIG.env")
 
+AGENT_LOG = os.path.join(BRAIN, "agent_session.log")
+def log_agent(tag, text):
+    ts = time.strftime("%H:%M:%S")
+    open(AGENT_LOG, "a", encoding="utf-8").write(f"[{ts}] [{tag}] {text}\n")
+
+
 C_CYAN, C_GREEN, C_YELLOW, C_RED, C_BOLD, C_DIM, C_RESET = "\033[96m", "\033[92m", "\033[93m", "\033[91m", "\033[1m", "\033[2m", "\033[0m"
-MODES = ("chat", "plan", "free", "auto")
+MODES = ("chat", "plan", "free", "auto", "infinite")
 EFFORTS = ("low", "medium", "high")
 
 def read_cfg():
@@ -30,7 +36,7 @@ def open_settings_menu():
         cfg = read_cfg()
         g_on = not os.path.exists(os.path.join(BRAIN, ".guardian_disabled"))
         print(f"\n{C_BOLD}{C_CYAN}⚙️  AI-LAB SETTINGS (/settings){C_RESET}\n{C_DIM}{'─'*54}{C_RESET}")
-        print(f"  [1] Modo del Agente:   {C_GREEN}{cfg.get('AGENT_MODE', 'chat').upper()}{C_RESET}  (chat | plan | free | auto)")
+        print(f"  [1] Modo del Agente:   {C_GREEN}{cfg.get('AGENT_MODE', 'chat').upper()}{C_RESET}  (chat | plan | free | auto | infinite)")
         print(f"  [2] Esfuerzo (Effort): {C_YELLOW}{cfg.get('EFFORT', 'low').upper()}{C_RESET}  (low | medium | high)")
         print(f"  [3] Guardián Ventana:  {C_GREEN if g_on else C_DIM}{'ON' if g_on else 'OFF'}{C_RESET}")
         print(f"  [4] Modelo Activo:     {C_CYAN}{cfg.get('MODEL', 'qwen3.5-pi')}{C_RESET}")
@@ -166,25 +172,30 @@ def check_esc_pressed():
                 return True
     return False
 
-def call_ollama(messages, cfg, stop_spin=None, phase=None):
+def call_ollama(messages, cfg, stop_spin=None, phase=None, escape_valley=False):
     model = cfg.get("MODEL", "qwen3.5-pi")
     effort = cfg.get("EFFORT", "low")
     verbose = (cfg.get("VERBOSE", "off") == "on")
-    think = (effort in ("medium", "high"))
-    base_pred = 1800 if effort == "low" else (2400 if effort == "medium" else 3500)
-    num_pred = base_pred + (1200 if verbose else 0)
+    think = escape_valley or (effort in ("medium", "high"))
+    max_think_chars = 2800 if effort == "medium" else 5500
+    num_pred = 1800 if effort == "low" else (3200 if effort == "medium" else 4500)
     host = "127." + "0.0.1"
-    payload = json.dumps({"model": model, "messages": messages, "stream": True, "think": think, "options": {"temperature": 0.2, "num_predict": num_pred}}).encode("utf-8")
-    conn = http.client.HTTPConnection(host, 11434, timeout=90)
+    payload = json.dumps({
+        "model": model, "messages": messages, "stream": True, "think": think,
+        "options": {"temperature": 0.75 if escape_valley else (0.65 if cfg.get("_RETRY") else 0.2), "num_predict": num_pred}
+    }).encode("utf-8")
+    conn = http.client.HTTPConnection(host, 11434, timeout=120)
     conn.request("POST", "/api/chat", body=payload, headers={"Content-Type": "application/json"})
     resp = conn.getresponse()
-    full_content, in_think, started_out = [], False, False
+    full_content, think_buf, in_think, started_out = [], [], False, False
+    overthought = False
     try:
         for raw_line in resp:
             if check_esc_pressed():
                 if in_think: sys.stdout.write(C_RESET)
                 sys.stdout.write(f"\n{C_YELLOW}⏹️  [Interrumpido con ESC]{C_RESET}\n")
                 sys.stdout.flush()
+                log_agent("ESC", "Cancelado por el usuario")
                 conn.close()
                 return "__CANCELLED__"
             line = raw_line.decode("utf-8", errors="replace").strip()
@@ -193,27 +204,36 @@ def call_ollama(messages, cfg, stop_spin=None, phase=None):
             msg = chunk.get("message", {})
             th = msg.get("thinking", "")
             ct = msg.get("content", "")
-            if th and verbose:
-                if not started_out:
-                    if stop_spin: stop_spin.set()
-                    sys.stdout.write("\r" + " " * 46 + "\r")
-                    started_out = True
-                if not in_think:
-                    sys.stdout.write(f"\n{C_DIM}💭 ")
-                    in_think = True
-                sys.stdout.write(th)
-                sys.stdout.flush()
+            if th:
+                think_buf.append(th)
+                t_len = sum(len(x) for x in think_buf)
+                if phase is not None and not verbose:
+                    phase = f"Razonando ({t_len}c)"
+                if verbose:
+                    if not started_out:
+                        if stop_spin: stop_spin.set()
+                        sys.stdout.write(chr(13) + " " * 64 + chr(13))
+                        started_out = True
+                    if not in_think:
+                        sys.stdout.write(f"\n{C_DIM}💭 ")
+                        in_think = True
+                    sys.stdout.write(th)
+                    sys.stdout.flush()
+                if t_len > max_think_chars and not full_content:
+                    overthought = True
+                    break
             if ct:
                 full_content.append(ct)
                 joined = "".join(full_content)
                 if phase is not None:
+                    m_fn = re.search(r"FILE:\s*([\w./\\-]+)", joined)
                     m_tl = re.search(r'"tool"\s*:\s*"([^"]+)"', joined)
-                    m_pa = re.search(r'"(?:path|arg)"\s*:\s*"([^"\\]{1,28})', joined)
-                    if m_tl:
-                        detail = f"{m_tl.group(1)} -> {m_pa.group(1)}" if m_pa else m_tl.group(1)
-                        phase = f"Armando {detail} ({len(joined)}c)"
+                    if m_fn:
+                        phase = f"Escribiendo {m_fn.group(1)} ({len(joined)}c)"
+                    elif m_tl:
+                        phase = f"Herramienta {m_tl.group(1)} ({len(joined)}c)"
                     else:
-                        phase = f"Escribiendo ({len(joined)}c)"
+                        phase = f"Respondiendo ({len(joined)}c)"
                 if not started_out and verbose:
                     if stop_spin: stop_spin.set()
                     sys.stdout.write(chr(13) + " " * 64 + chr(13))
@@ -224,7 +244,19 @@ def call_ollama(messages, cfg, stop_spin=None, phase=None):
     finally:
         if in_think: sys.stdout.write(C_RESET + "\n")
         conn.close()
-    return "".join(full_content).strip()
+    if think_buf:
+        log_agent("THINK", "".join(think_buf)[:1200])
+    if overthought:
+        log_agent("WARN", "Thinking excedio limite; reintentando en modo directo")
+        sys.stdout.write(f"\n{C_CYAN}⚡ [Razonamiento completado -> Generando código directo...]{C_RESET}\n")
+        sys.stdout.flush()
+        fast_cfg = dict(cfg)
+        fast_cfg["EFFORT"] = "low"
+        fast_cfg["VERBOSE"] = "off"
+        return call_ollama(messages, fast_cfg, stop_spin, phase, escape_valley=False)
+    out = "".join(full_content).strip()
+    log_agent("REPLY", out[:1500])
+    return out
 
 def create_learning_loop(goal_desc, cfg):
     print(f"\n{C_BOLD}{C_YELLOW}🧬 DISEÑADOR DE NUEVO BUCLE DE APRENDIZAJE{C_RESET}")
@@ -246,15 +278,40 @@ def create_learning_loop(goal_desc, cfg):
     if input(f"  {C_YELLOW}¿Iniciar ahora mismo el bucle evolutivo? (S/n): {C_RESET}").strip().lower() != "n":
         __import__("sys_tests").run_guarded_session(tdir, mode="loop")
 
+HIST_FILE = os.path.join(BRAIN, "agent_history.txt")
+
+def load_cmd_history():
+    if os.path.exists(HIST_FILE):
+        return [l.rstrip("\n") for l in open(HIST_FILE, encoding="utf-8") if l.strip()]
+    return []
+
+def save_cmd_history(cmd):
+    if not cmd or cmd.lower() in ("salir", "exit", "quit"):
+        return
+    hist = load_cmd_history()
+    if not hist or hist[-1] != cmd:
+        hist.append(cmd)
+        open(HIST_FILE, "w", encoding="utf-8").writelines(x + "\n" for x in hist[-100:])
+
 def read_input_with_shift_tab():
     if os.name != "nt": return input()
     import msvcrt
     CR = chr(13)
+    hist = load_cmd_history()
+    h_idx = len(hist)
+    draft = ""
+
     def print_prefix():
         cfg = read_cfg()
         m, ef = cfg.get("AGENT_MODE", "chat").upper(), cfg.get("EFFORT", "low").upper()
-        m_col = C_GREEN if m == "CHAT" else (C_YELLOW if m == "PLAN" else (C_RED if m == "FREE" else C_CYAN))
+        m_col = C_GREEN if m == "CHAT" else (C_YELLOW if m == "PLAN" else (C_RED if m == "FREE" else ("\033[95m" if m == "INFINITE" else C_CYAN)))
         sys.stdout.write(f"{m_col}[{m} | effort:{ef}]{C_RESET} {C_BOLD}Tú > {C_RESET}")
+        sys.stdout.flush()
+
+    def redraw_line(new_chars, old_len):
+        sys.stdout.write(CR + " " * (old_len + 36) + CR)
+        print_prefix()
+        sys.stdout.write("".join(new_chars))
         sys.stdout.flush()
 
     print_prefix()
@@ -264,14 +321,34 @@ def read_input_with_shift_tab():
         if ch in (CR, "\n"):
             sys.stdout.write("\n")
             sys.stdout.flush()
-            return "".join(buf).strip()
+            res = "".join(buf).strip()
+            save_cmd_history(res)
+            return res
         elif ch == "\x03":
             raise KeyboardInterrupt
         elif ch == "\x1b":
+            if msvcrt.kbhit():
+                nxt1 = msvcrt.getwch()
+                if nxt1 == "[" and msvcrt.kbhit():
+                    nxt2 = msvcrt.getwch()
+                    if nxt2 == "A" and hist:  # Flecha Arriba ANSI (Windows Terminal)
+                        if h_idx == len(hist): draft = "".join(buf)
+                        if h_idx > 0:
+                            h_idx -= 1
+                            old_l = len(buf)
+                            buf = list(hist[h_idx])
+                            redraw_line(buf, old_l)
+                    elif nxt2 == "B" and hist:  # Flecha Abajo ANSI (Windows Terminal)
+                        if h_idx < len(hist):
+                            h_idx += 1
+                            old_l = len(buf)
+                            buf = list(hist[h_idx]) if h_idx < len(hist) else list(draft)
+                            redraw_line(buf, old_l)
+                    continue
             if buf:
-                sys.stdout.write(CR + " " * (len(buf) + 32) + CR)
+                old_l = len(buf)
                 buf.clear()
-                print_prefix()
+                redraw_line(buf, old_l)
             else:
                 sys.stdout.write("\n")
                 return "salir"
@@ -281,20 +358,31 @@ def read_input_with_shift_tab():
                 sys.stdout.write("\b \b")
                 sys.stdout.flush()
         elif ch in ("\x00", "\xe0"):
-            if msvcrt.getwch() == "\x0f":
+            ext = msvcrt.getwch()
+            if ext == "\x0f":  # Shift+Tab
                 cfg = read_cfg()
                 cur = cfg.get("AGENT_MODE", "chat")
                 write_cfg({"AGENT_MODE": MODES[(MODES.index(cur) + 1) % len(MODES)] if cur in MODES else "chat"})
-                sys.stdout.write(CR + " " * (len(buf) + 32) + CR)
-                print_prefix()
-                sys.stdout.write("".join(buf))
-                sys.stdout.flush()
+                redraw_line(buf, len(buf))
+            elif ext == "H" and hist:  # Flecha Arriba
+                if h_idx == len(hist):
+                    draft = "".join(buf)
+                if h_idx > 0:
+                    h_idx -= 1
+                    old_l = len(buf)
+                    buf = list(hist[h_idx])
+                    redraw_line(buf, old_l)
+            elif ext == "P" and hist:  # Flecha Abajo
+                if h_idx < len(hist):
+                    h_idx += 1
+                    old_l = len(buf)
+                    buf = list(hist[h_idx]) if h_idx < len(hist) else list(draft)
+                    redraw_line(buf, old_l)
         elif ch == "\t" and not buf:
             cfg = read_cfg()
             cur = cfg.get("AGENT_MODE", "chat")
             write_cfg({"AGENT_MODE": MODES[(MODES.index(cur) + 1) % len(MODES)] if cur in MODES else "chat"})
-            sys.stdout.write(CR + " " * 32 + CR)
-            print_prefix()
+            redraw_line(buf, 0)
         elif ch.isprintable():
             buf.append(ch)
             sys.stdout.write(ch)
@@ -302,44 +390,27 @@ def read_input_with_shift_tab():
 
 def build_sys_prompt(mode):
     base = (
-        "Eres el Agente Inteligente de AI-LAB en Windows. Responde en español de forma natural, clara y directa.\n"
-        f"CONOCIMIENTO DEL CEREBRO:\n{load_brain_context()}\n\n"
+        "Eres el Agente Inteligente de AI-LAB en Windows. Sé conciso, directo y práctico.\n"
+        "REGLAS DE RESPUESTA (sin contradicciones):\n"
+        "1. Si el usuario solo saluda o pregunta algo teórico, responde directamente en texto natural.\n"
+        "2. Si pide CREAR un script o archivo Python, responde DIRECTAMENTE con:\n"
+        "FILE: nombre.py\n"
+        "```python\n"
+        "# código limpio usando solo librería estándar de Python (tkinter + math para gráficos/3D)\n"
+        "```\n"
+        "3. Si pide ejecutar un comando, abrir una app, leer un archivo o ver la pantalla, responde SOLO con una línea JSON:\n"
+        '{"tool": "run_cmd", "arg": "comando"} | {"tool": "launch_app", "arg": "app"} | {"tool": "read_file", "arg": "ruta"} | {"tool": "see_screen", "arg": "ventana"}\n'
     )
-    if mode == "free":
-        return base + (
-            "MODO EJECUCIÓN LIBRE (FREE): Puedes escribir código Python (```python ... ```) o comandos shell (```bash ... ```) "
-            "para resolver directamente cualquier tarea en Windows sin restricciones de herramientas predefinidas. "
-            "Para abrir archivos en VS Code usa `code <archivo>`."
-        )
-    tools_help = (
-        "- Si el usuario solo saluda o conversa, responde directamente SIN herramientas.\n"
-        "- Si pide una acción concreta, responde ÚNICAMENTE con JSON puro:\n"
-        '  Para crear/guardar un archivo Python, escribe SOLO:\n  FILE: nombre.py\n  ```python\n  # codigo limpio usando solo stdlib (tkinter + math para graficos/3D)\n  ```\n  {"tool": "see_screen", "arg": "titulo_ventana"} -> Toma captura de pantalla/ventana en Windows y analiza qué se ve realmente (útil tras abrir una GUI para verificar y corregir fallos visuales)\n  {"tool": "run_cmd", "arg": "comando"} | {"tool": "launch_app", "arg": "nombre_app"} | {"tool": "read_file", "arg": "ruta"}\n'
-    )
-    if mode == "chat": return base + tools_help + "- MODO CHAT CLÁSICO: Auto-constructor desactivado."
-    if mode == "plan": return base + tools_help + "- MODO PLAN: Presenta un plan breve y pide confirmación antes de crear bucles."
-    return base + tools_help + '- MODO AUTO: Si falta una habilidad nueva, usa {"tool": "propose_loop", "arg": "objetivo"}.'
-
-
-def distill_long_task_lesson(user_goal, steps_taken, cfg):
-    if cfg.get("AUTO_LEARN", "on") != "on" or steps_taken < 3:
-        return
-    prompt = (
-        f"Acabas de resolver esta tarea compleja en {steps_taken} pasos: '{user_goal}'.\n"
-        "Extrae UNA SOLA regla técnica general y reutilizable para Windows/Python (máximo 15 palabras, sin mencionar nombres de archivos temporales). "
-        "Responde SOLO con la regla empezando por '- [经验] '."
-    )
-    rule = call_ollama([{"role": "user", "content": prompt}], {"MODEL": cfg.get("MODEL", "qwen3.5-pi"), "EFFORT": "low", "VERBOSE": "off", "AUTO_LEARN": "on"}).strip()
-    if rule.startswith("- ") and len(rule) < 140:
-        cand = os.path.join(BRAIN, "CANDIDATE_LESSONS.md")
-        existing = open(cand, encoding="utf-8").read() if os.path.exists(cand) else ""
-        if rule not in existing:
-            open(cand, "a", encoding="utf-8").write(rule + "\n")
-            print(f"{C_CYAN}🧪 [CUARENTENA DE APRENDIZAJE] Lección candidata guardada en CANDIDATE_LESSONS.md:{C_RESET}\n   {C_DIM}{rule}{C_RESET}\n")
+    if mode == "plan":
+        return base + "MODO PLAN: Presenta un plan breve en 3 pasos antes de ejecutar."
+    if mode == "auto":
+        return base + 'MODO AUTO: Si falta una capacidad nueva, usa {"tool": "propose_loop", "arg": "objetivo"}.'
+    if mode == "infinite":
+        return base + "MODO INFINITE: Si un script falla, corrige el error y vuelve a intentarlo con otro enfoque."
+    return base
 
 def main():
-    write_cfg({"AGENT_MODE": "chat"})
-    print(f"\n{C_BOLD}{C_CYAN}🤖 AI-LAB Agente Inteligente{C_RESET}\n{C_DIM}   Shift+Tab (o Tab vacío): cambiar [CHAT | PLAN | FREE | AUTO] | /settings | /effort | /wrong | 'salir'{C_RESET}\n")
+    print(f"\n{C_BOLD}{C_CYAN}🤖 AI-LAB Agente Inteligente{C_RESET}\n{C_DIM}   Shift+Tab (o Tab vacío): cambiar [CHAT | PLAN | FREE | AUTO | INFINITE] | /settings | /effort | /wrong | 'salir'{C_RESET}\n")
     last_mode, messages = None, []
     while True:
         cfg = read_cfg()
@@ -352,15 +423,25 @@ def main():
         low = user_in.lower()
         if low in ("salir", "exit", "quit"): break
         if low == "/settings": open_settings_menu(); last_mode = None; continue
+        if low == "/agentlog":
+            txt = open(AGENT_LOG, encoding="utf-8").read()[-4000:] if os.path.exists(AGENT_LOG) else "(sin log aún)"
+            subprocess.run(["clip"], input=txt, text=True)
+            print(f"{C_GREEN}📋 Últimos {len(txt)} chars de agent_session.log copiados al portapapeles!{C_RESET}\n"); continue
         if low.startswith("/effort"): handle_effort_cmd(user_in[7:]); continue
         if low.startswith("/verbose"): handle_verbose_cmd(user_in[8:]); continue
         if low.startswith("/wrong"):
             note = user_in[6:].strip() or "No ejecutar herramientas sin petición explícita."
             open(os.path.join(BRAIN, "PRINCIPLES.md"), "a", encoding="utf-8").write(f"- [用户纠正] {note}\n")
             print(f"{C_GREEN}🧠 Lección grabada: '{note}'{C_RESET}\n"); last_mode = None; continue
+        log_agent(f"USER:{cur_mode}", user_in)
         messages.append({"role": "user", "content": user_in})
         steps_used = 0
-        for _ in range(5):
+        last_err = ""
+        escape_valley = False
+        max_iters = 999 if cur_mode == "infinite" else 2
+        for attempt in range(max_iters):
+            if cur_mode == "infinite" and attempt > 0:
+                print(f"\033[95m♾️  [INFINITE intento #{attempt + 1}{' | ANTI-VALLEY' if escape_valley else ''}]{C_RESET}")
             stop_spin = threading.Event()
             phase = ["Pensando"]
             def _spin():
@@ -376,7 +457,7 @@ def main():
             th_spin = threading.Thread(target=_spin, daemon=True)
             th_spin.start()
             try:
-                reply = call_ollama(messages, cfg, stop_spin, phase)
+                cfg["_RETRY"] = (attempt > 0); reply = call_ollama(messages, cfg, stop_spin, phase, escape_valley=escape_valley)
             finally:
                 stop_spin.set()
                 th_spin.join(timeout=0.3)
@@ -402,10 +483,26 @@ def main():
                     if "tkinter" in py_src or "mainloop" in py_src:
                         proc = subprocess.Popen([sys.executable, tmp_py], cwd=ROOT, stderr=subprocess.PIPE, text=True)
                         time.sleep(1.0)
-                        if proc.poll() is not None:
-                            err = proc.stderr.read().strip()
+                        if proc.poll() is not None and proc.returncode != 0:
+                            err = proc.stderr.read().strip() or f"Exit code {proc.returncode}"
                             print(f"{C_RED}❌ Error al ejecutar {fname}: {err}{C_RESET}")
-                            messages.extend([{"role": "assistant", "content": reply}, {"role": "user", "content": f"FALLÓ al abrir {fname} con este error:\n{err}\nCorrige el código en FILE: {fname} ahora."}])
+                            if err == last_err:
+                                if cur_mode != "infinite":
+                                    print(f"{C_YELLOW}⏹️  Error repetido. Deteniendo (usa Shift+Tab -> INFINITE para insistir hasta lograrlo).{C_RESET}\n")
+                                    break
+                                escape_valley = True
+                                messages.extend([{"role": "assistant", "content": reply}, {"role": "user", "content": f"MISMO ERROR REPETIDO:\n{err}\nEstás en un valle local. Descarta el enfoque anterior y reescribe FILE: {fname} desde cero con una estructura de datos distinta y simple."}])
+                                continue
+                            last_err = err
+                            escape_valley = False
+                            bad_snippet = ""
+                            m_ln = re.search(r"line (\d+)", err)
+                            if m_ln:
+                                ln_no = int(m_ln.group(1))
+                                src_lines = py_src.splitlines()
+                                if 1 <= ln_no <= len(src_lines):
+                                    bad_snippet = f"\nLínea exacta con error ({ln_no}): {src_lines[ln_no-1]}"
+                            messages.extend([{"role": "assistant", "content": reply}, {"role": "user", "content": f"FALLÓ al abrir {fname} con este error:\n{err}{bad_snippet}\nCorrige esa línea y devuelve el código completo limpio en FILE: {fname}."}])
                             continue
                         import vision_eye
                         _, v_obs = vision_eye.capture_and_inspect("")
@@ -490,6 +587,12 @@ def main():
                         messages.extend([{"role": "assistant", "content": j_str}, {"role": "user", "content": f"Resultado: {obs}\nResponde brevemente."}])
                     continue
 
+            if not reply:
+                if cur_mode == "infinite":
+                    messages.append({"role": "user", "content": "Responde ahora con el código directo en FILE: nombre.py sin preámbulos."})
+                    continue
+                print(f"{C_YELLOW}⚠️  Respuesta vacía (el modelo agotó tokens pensando). Prueba /effort low o modo INFINITE.{C_RESET}\n")
+                break
             print(f"{C_GREEN}AI > {C_RESET}{reply}\n")
             messages.append({"role": "assistant", "content": reply})
             if steps_used >= 3:

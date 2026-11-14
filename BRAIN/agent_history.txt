@@ -1,0 +1,2 @@
+Please create a python script that shows a 3d cube rotating
+Can you create a prueba0.txt saying hello world and open it with VSC?
