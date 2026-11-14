@@ -10,6 +10,16 @@ TASKS = os.path.join(ROOT, "TASKS")
 CFG_FILE = os.path.join(BRAIN, "CONFIG.env")
 
 AGENT_LOG = os.path.join(BRAIN, "agent_session.log")
+
+TUI = None
+def ui_print(msg="", end="\n"):
+    txt = str(msg) + end
+    if TUI:
+        TUI.write(txt)
+    else:
+        sys.stdout.write(txt)
+        sys.stdout.flush()
+
 def log_agent(tag, text):
     ts = time.strftime("%H:%M:%S")
     open(AGENT_LOG, "a", encoding="utf-8").write(f"[{ts}] [{tag}] {text}\n")
@@ -168,6 +178,9 @@ def tool_write_file(path, content):
     return f"OK: Archivo guardado en {p} ({len(content)} chars)"
 
 def check_esc_pressed():
+    if TUI and TUI.cancel_flag:
+        TUI.cancel_flag = False
+        return True
     if os.name == "nt":
         import msvcrt
         while msvcrt.kbhit():
@@ -218,10 +231,9 @@ def call_ollama(messages, cfg, stop_spin=None, phase=None, escape_valley=False):
                         sys.stdout.write(chr(13) + " " * 64 + chr(13))
                         started_out = True
                     if not in_think:
-                        sys.stdout.write(f"\n{C_DIM}💭 ")
+                        ui_print(f"\n{C_DIM}💭 ", end="")
                         in_think = True
-                    sys.stdout.write(th)
-                    sys.stdout.flush()
+                    ui_print(th, end='')
                 pass
             if ct:
                 full_content.append(ct)
@@ -240,7 +252,7 @@ def call_ollama(messages, cfg, stop_spin=None, phase=None, escape_valley=False):
                     sys.stdout.write(chr(13) + " " * 64 + chr(13))
                     started_out = True
                 if in_think:
-                    sys.stdout.write(f"{C_RESET}\n")
+                    ui_print(f"{C_RESET}\n", end="")
                     in_think = False
     finally:
         if in_think: sys.stdout.write(C_RESET + "\n")
@@ -414,41 +426,72 @@ def build_sys_prompt(mode):
     return base
 
 def main():
-    print(f"\n{C_BOLD}{C_CYAN}🤖 AI-LAB Autonomous Agent{C_RESET}\n{C_DIM}   Shift+Tab: switch [CHAT | PLAN | FREE | AUTO | INFINITE] | /settings | /effort | /compress | /agentlog | 'exit'{C_RESET}\n")
+    global TUI
+    import tui_bar
+    TUI = tui_bar.BottomBarTUI(read_cfg, write_cfg, MODES, load_cmd_history, save_cmd_history)
+    TUI.start()
+    ui_print(f"{C_BOLD}{C_CYAN}🤖 AI-LAB Autonomous Agent (Split-Screen Dock){C_RESET}")
+    ui_print(f"{C_DIM}   Escribe abajo en cualquier momento (se encola) | Shift+Tab: Modo | /compact | /settings | /effort | ESC{C_RESET}\n")
     last_mode, messages = None, []
-    while True:
+    try:
+      while True:
         cfg = read_cfg()
         cur_mode = cfg.get("AGENT_MODE", "chat")
         if cur_mode != last_mode:
             messages, last_mode = [{"role": "system", "content": build_sys_prompt(cur_mode)}], cur_mode
-        try: user_in = read_input_with_shift_tab()
-        except (EOFError, KeyboardInterrupt): print(); break
-        if not user_in: continue
+        if not TUI.queue:
+            time.sleep(0.05)
+            continue
+        user_in = TUI.queue.popleft()
+        TUI.refresh()
+        if not user_in:
+            continue
+        ui_print(f"{C_BOLD}{C_CYAN}You > {C_RESET}{user_in}")
         low = user_in.lower()
         if low in ("salir", "exit", "quit"):
             if len(messages) > 2:
                 import research_tools
-                print(f"{C_CYAN}🗜️  Guardando aprendizaje de sesión en BRAIN/KNOWLEDGE_MAP.md...{C_RESET}")
+                ui_print(f"{C_CYAN}🗜️  Compressing session into BRAIN/KNOWLEDGE_MAP.md...{C_RESET}")
                 research_tools.compress_session(messages, [], call_ollama, cfg)
             break
-        if low == "/compress":
+        if low in ("/compress", "/compact"):
             import research_tools
-            print(f"{C_CYAN}🗜️  Comprimiendo sesión en BRAIN/KNOWLEDGE_MAP.md...{C_RESET}")
+            TUI.busy = True
+            TUI.status_note = "Compacting..."
+            TUI.refresh()
             summ = research_tools.compress_session(messages, [], call_ollama, cfg)
-            messages = [{"role": "system", "content": build_sys_prompt(cur_mode)}, {"role": "assistant", "content": f"Contexto comprimido:\n{summ}"}]
-            print(f"{C_GREEN}✅ Memoria comprimida y guardada para futuras sesiones:{C_RESET}\n{C_DIM}{summ}{C_RESET}\n")
+            TUI.busy = False
+            TUI.status_note = ""
+            messages = [{"role": "system", "content": build_sys_prompt(cur_mode)}, {"role": "assistant", "content": f"Compacted context:\n{summ}"}]
+            ui_print(f"{C_GREEN}✅ Compacted into BRAIN/KNOWLEDGE_MAP.md:{C_RESET}\n{C_DIM}{summ}{C_RESET}\n")
             continue
-        if low == "/settings": open_settings_menu(); last_mode = None; continue
+        if low == "/settings":
+            TUI.stop()
+            open_settings_menu()
+            TUI.start()
+            last_mode = None
+            continue
+        if low.startswith("/effort"):
+            handle_effort_cmd(user_in[7:])
+            TUI.refresh()
+            continue
+        if low.startswith("/verbose"):
+            handle_verbose_cmd(user_in[8:])
+            continue
         if low == "/agentlog":
-            txt = open(AGENT_LOG, encoding="utf-8").read()[-4000:] if os.path.exists(AGENT_LOG) else "(sin log aún)"
+            txt = open(AGENT_LOG, encoding="utf-8").read()[-4000:] if os.path.exists(AGENT_LOG) else "(no log yet)"
             subprocess.run(["clip"], input=txt, text=True)
-            print(f"{C_GREEN}📋 Últimos {len(txt)} chars de agent_session.log copiados al portapapeles!{C_RESET}\n"); continue
-        if low.startswith("/effort"): handle_effort_cmd(user_in[7:]); continue
-        if low.startswith("/verbose"): handle_verbose_cmd(user_in[8:]); continue
+            ui_print(f"{C_GREEN}📋 Copied {len(txt)} chars of agent_session.log to clipboard!{C_RESET}\n")
+            continue
         if low.startswith("/wrong"):
-            note = user_in[6:].strip() or "No ejecutar herramientas sin petición explícita."
-            open(os.path.join(BRAIN, "PRINCIPLES.md"), "a", encoding="utf-8").write(f"- [用户纠正] {note}\n")
-            print(f"{C_GREEN}🧠 Lección grabada: '{note}'{C_RESET}\n"); last_mode = None; continue
+            note = user_in[6:].strip() or "Do not run tools without explicit user request."
+            open(os.path.join(BRAIN, "PRINCIPLES.md"), "a", encoding="utf-8").write(f"- [经验] {note}\n")
+            ui_print(f"{C_GREEN}🧠 Rule saved: '{note}'{C_RESET}\n")
+            last_mode = None
+            continue
+
+        TUI.busy = True
+        TUI.refresh()
         log_agent(f"USER:{cur_mode}", user_in)
         messages.append({"role": "user", "content": user_in})
         steps_used = 0
@@ -460,13 +503,13 @@ def main():
             ctx_chars = sum(len(m.get("content", "")) for m in messages)
             if ctx_chars > 6500:
                 import research_tools
-                print(f"{C_CYAN}🗜️  [AUTO-COMPRESS] Contexto ({ctx_chars}c) compactado en BRAIN/KNOWLEDGE_MAP.md...{C_RESET}")
+                ui_print(f"{C_CYAN}🗜️  [AUTO-COMPRESS] Contexto ({ctx_chars}c) compactado en BRAIN/KNOWLEDGE_MAP.md...{C_RESET}")
                 summ = research_tools.compress_session(messages, trace_notes, call_ollama, cfg)
                 messages = [{"role": "system", "content": build_sys_prompt(cur_mode)}, {"role": "user", "content": user_in}, {"role": "assistant", "content": f"Resumen acumulado:\n{summ}"}]
             if len(messages) > 5:
                 messages = [messages] + messages[-4:]
             if cur_mode == "infinite" and attempt > 0:
-                print(f"\033[95m♾️  [INFINITE intento #{attempt + 1}{' | ANTI-VALLEY' if escape_valley else ''}]{C_RESET}")
+                ui_print(f"\033[95m♾️  [INFINITE intento #{attempt + 1}{' | ANTI-VALLEY' if escape_valley else ''}]{C_RESET}")
             stop_spin = threading.Event()
             phase = ["Thinking"]
             def _spin():
@@ -504,18 +547,18 @@ def main():
                     tmp_py = os.path.join(ROOT, fname)
                     py_src = m_py.group(1)
                     open(tmp_py, "w", encoding="utf-8").write(py_src)
-                    print(f"{C_YELLOW}⚙️  [AUTO-SAVE: {fname} ({len(py_src)} chars)]{C_RESET}")
+                    ui_print(f"{C_YELLOW}⚙️  [AUTO-SAVE: {fname} ({len(py_src)} chars)]{C_RESET}")
                     if "tkinter" in py_src or "mainloop" in py_src:
                         proc = subprocess.Popen([sys.executable, tmp_py], cwd=ROOT, stderr=subprocess.PIPE, text=True)
                         time.sleep(1.0)
                         if proc.poll() is not None and proc.returncode != 0:
                             err = proc.stderr.read().strip() or f"Exit code {proc.returncode}"
-                            print(f"{C_RED}❌ Error al ejecutar {fname}: {err}{C_RESET}")
+                            ui_print(f"{C_RED}❌ Error al ejecutar {fname}: {err}{C_RESET}")
                             trace_notes.append(f"Error: {err.splitlines()[-1] if err.splitlines() else err}")
                             err_sig = err.splitlines()[-1] if err.splitlines() else err
                             if err_sig == last_err:
                                 if cur_mode != "infinite":
-                                    print(f"{C_YELLOW}⏹️  Error repetido. Deteniendo (usa Shift+Tab -> INFINITE para insistir hasta lograrlo).{C_RESET}\n")
+                                    ui_print(f"{C_YELLOW}⏹️  Error repetido. Deteniendo (usa Shift+Tab -> INFINITE para insistir hasta lograrlo).{C_RESET}\n")
                                     break
                                 escape_valley = True
                                 messages.extend([{"role": "assistant", "content": reply}, {"role": "user", "content": f"MISMO ERROR REPETIDO:\n{err}\nEstás en un valle local. Descarta el enfoque anterior y reescribe FILE: {fname} desde cero con una estructura de datos distinta y simple."}])
@@ -533,31 +576,31 @@ def main():
                             continue
                         import vision_eye
                         _, v_obs = vision_eye.capture_and_inspect("", target_pid=proc.pid)
-                        print(f"{C_CYAN}👁️  [AUTO-VISIÓN] {v_obs}{C_RESET}")
+                        ui_print(f"{C_CYAN}👁️  [AUTO-VISIÓN] {v_obs}{C_RESET}")
                         trace_notes.append(v_obs)
                         if "ALERTA_VISUAL:" in v_obs:
                             proc.terminate()
                             messages.extend([{"role": "assistant", "content": reply}, {"role": "user", "content": f"Visual inspection (5 frames): {v_obs}\nFix the scale, centering, or animation loop in FILE: {fname} so it fits cleanly inside the window and animates smoothly."}])
                             continue
-                        print(f"{C_GREEN}✅ Window visually verified and working!{C_RESET}\n")
+                        ui_print(f"{C_GREEN}✅ Window visually verified and working!{C_RESET}\n")
                         messages.append({"role": "assistant", "content": reply})
                         if steps_used >= 2: distill_long_task_lesson(user_in, steps_used, cfg, trace_notes)
                         if cur_mode == "infinite":
                             proc.terminate()
-                            print(f"\033[95m♾️  [INFINITE -> MEJORA CONTINUA] Analizando cómo optimizar, enriquecer o investigar mejoras para '{fname}' (pulsa ESC para detener)...{C_RESET}\n")
+                            ui_print(f"\033[95m♾️  [INFINITE -> MEJORA CONTINUA] Analizando cómo optimizar, enriquecer o investigar mejoras para '{fname}' (pulsa ESC para detener)...{C_RESET}\n")
                             messages.append({"role": "user", "content": f"La versión actual de {fname} ya funciona y pasó la verificación visual ({v_obs}). Ahora actúa como investigador autónomo: propón e implementa una mejora significativa (ej. mejor proyección 3D, sombreado/colores, fluidez FPS, controles o mayor precisión) en FILE: {fname}."})
                             time.sleep(1.0)
                             continue
                         break
                     res = subprocess.run([sys.executable, tmp_py], cwd=ROOT, capture_output=True, text=True, timeout=20)
                     obs = (res.stdout + res.stderr).strip() or "(código Python ejecutado con éxito)"
-                    print(f"{C_DIM}   ↳ {obs[:800]}{C_RESET}\n")
+                    ui_print(f"{C_DIM}   ↳ {obs[:800]}{C_RESET}\n")
                     messages.append({"role": "assistant", "content": reply})
                     break
                 elif m_sh:
                     steps_used += 1
                     obs = tool_run_cmd(m_sh.group(1).strip())
-                    print(f"{C_DIM}   ↳ {obs[:800]}{C_RESET}\n")
+                    ui_print(f"{C_DIM}   ↳ {obs[:800]}{C_RESET}\n")
                     messages.append({"role": "assistant", "content": reply})
                     break
 
@@ -584,7 +627,7 @@ def main():
                     steps_used += 1
                     if tname == "propose_loop":
                         if cur_mode == "chat":
-                            print(f"{C_GREEN}AI > {C_RESET}Estoy en modo CHAT clásico (auto-constructor desactivado). Pulsa Shift+Tab para pasar a AUTO.\n")
+                            ui_print(f"{C_GREEN}AI > {C_RESET}Estoy en modo CHAT clásico (auto-constructor desactivado). Pulsa Shift+Tab para pasar a AUTO.\n")
                             break
                         if input(f"  {C_CYAN}💡 ¿Creamos un bucle para aprender '{targ}'? (S/n): {C_RESET}").strip().lower() != "n":
                             create_learning_loop(targ, cfg)
@@ -592,10 +635,10 @@ def main():
                     if tname == "write_file":
                         wpath = call.get("path") or targ
                         wcont = call.get("content", "")
-                        print(f"{C_YELLOW}⚙️  [TOOL: write_file({wpath})]{C_RESET}")
+                        ui_print(f"{C_YELLOW}⚙️  [TOOL: write_file({wpath})]{C_RESET}")
                         obs = tool_write_file(wpath, wcont)
                     else:
-                        print(f"{C_YELLOW}⚙️  [TOOL: {tname}({targ})]{C_RESET}")
+                        ui_print(f"{C_YELLOW}⚙️  [TOOL: {tname}({targ})]{C_RESET}")
                         if tname == "see_screen":
                             import vision_eye
                             _, obs = vision_eye.capture_and_inspect(targ)
@@ -607,7 +650,7 @@ def main():
                             obs = research_tools.search_repos(targ)
                         elif tname == "spawn_subagent":
                             import research_tools
-                            print(f"{C_CYAN}🤖 [SUBAGENT SPAWNED] Delegating '{targ}' in isolated context...{C_RESET}")
+                            ui_print(f"{C_CYAN}🤖 [SUBAGENT SPAWNED] Delegating '{targ}' in isolated context...{C_RESET}")
                             obs = research_tools.run_subagent(targ, call_ollama, cfg)
                         elif tname == "launch_app":
                             obs = tool_launch_app(targ)
@@ -620,7 +663,7 @@ def main():
                                 obs += f"\n[AUTO-VISIÓN] {v_obs}"
                         else:
                             obs = tool_read_file(targ)
-                    print(f"{C_DIM}   ↳ {obs}{C_RESET}")
+                    ui_print(f"{C_DIM}   ↳ {obs}{C_RESET}")
 
                     if "[AUTO-VISIÓN]" in str(obs) and ("cobertura 0." in str(obs) or "totalmente negra" in str(obs)):
                         messages.extend([{"role": "assistant", "content": j_str}, {"role": "user", "content": f"Resultado visual: {obs}\n¡ALERTA VISUAL! La ventana casi no muestra nada dibujado (solo un punto o pantalla vacía). Lee el script con read_file, corrige la proyección/escala/coordenadas para que el objeto se vea grande y centrado, guarda con write_file y vuelve a ejecutarlo."}])
@@ -636,18 +679,25 @@ def main():
                 if cur_mode == "infinite":
                     messages.append({"role": "user", "content": "Responde ahora con el código directo en FILE: nombre.py sin preámbulos."})
                     continue
-                print(f"{C_YELLOW}⚠️  Respuesta vacía (el modelo agotó tokens pensando). Prueba /effort low o modo INFINITE.{C_RESET}\n")
+                ui_print(f"{C_YELLOW}⚠️  Respuesta vacía (el modelo agotó tokens pensando). Prueba /effort low o modo INFINITE.{C_RESET}\n")
                 break
-            print(f"{C_GREEN}AI > {C_RESET}{reply}\n")
+            ui_print(f"{C_GREEN}AI > {C_RESET}{reply}\n")
             messages.append({"role": "assistant", "content": reply})
             if steps_used >= 2:
                 distill_long_task_lesson(user_in, steps_used, cfg, trace_notes)
             if cur_mode == "infinite" and steps_used > 0:
-                print(f"\033[95m♾️  [INFINITE -> INVESTIGACIÓN AUTÓNOMA] Buscando el siguiente nivel de mejora (pulsa ESC para parar)...{C_RESET}\n")
+                ui_print(f"\033[95m♾️  [INFINITE -> INVESTIGACIÓN AUTÓNOMA] Buscando el siguiente nivel de mejora (pulsa ESC para parar)...{C_RESET}\n")
                 messages.append({"role": "user", "content": "Ya completaste el paso anterior. Investiga qué punto débil tiene la solución actual y aplica la siguiente mejora concreta."})
                 time.sleep(1.0)
                 continue
             break
+
+        if TUI:
+            TUI.busy = False
+            TUI.status_note = ""
+            TUI.refresh()
+    finally:
+        if TUI: TUI.stop()
 
 if __name__ == "__main__":
     main()
