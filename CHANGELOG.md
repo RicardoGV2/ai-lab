@@ -1,5 +1,9 @@
 # 📜 AI-LAB CHANGELOG & BACKUPS
 
+### 🏷️ `snap-20261114-113403` — 2026-11-14 11:34
+- **Nota:** adding tests
+- **Archivos:** `.gitignore, CORE/harness.py, 288ms], TASKS/09_win_ram_optimizer/REPORT.md, ailab, ailab.bat, python`
+
 ### 🏷️ `snap-20261114-111610` — 2026-11-14 11:16
 - **Nota:** ram optimizations
 - **Archivos:** `.gitignore, CORE/engine.sh, CORE/harness.py, 288ms], TASKS/09_win_ram_optimizer/, ailab, ailab.bat, python`

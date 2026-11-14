@@ -1,3 +1,5 @@
+import os; os.environ["PATH"] = r"C:\Program Files\Git\bin;C:\Program Files\Git\usr\bin;" + os.environ.get("PATH","")
+import os; os.environ["PATH"] = r"C:\msys64\ucrt64\bin;C:\msys64\usr\bin;" + os.environ.get("PATH","")
 import os, sys, subprocess, http.client, json, time, re, shutil
 if os.name == "nt":
     import msvcrt
@@ -98,6 +100,7 @@ def handle_slash(cmd):
                 print(f"{C_CYAN}?? Ultimos procesos cerrados:{C_RESET} {', '.join(data.get('closed', ())) or 'Ninguno'}")
                 print(f"{C_DIM}   ?? Usa '/protect nombre.exe' para excluir cualquiera de ellos.{C_RESET}")
         return True
+    elif c == "/test": run_system_tests(); return True
     elif c == "/save":
         import version_control; version_control.create_snapshot(); return True
     elif c == "/clip" or c.startswith("/clip "):
@@ -210,15 +213,16 @@ while True:
     print(f"  {C_GREEN}(3){C_RESET} Probar Script Optimizado   {C_GREEN}(7){C_RESET} Cambiar Modelo (/model)")
     print(f"  {C_GREEN}(4){C_RESET} Investigar en arXiv        {C_GREEN}(8){C_RESET} Nueva Tarea   {C_GREEN}(9){C_RESET} Sync Git (/sync)")
     print(f"  {C_CYAN}(b){C_RESET} Ver Cerebro (/brain)       {C_YELLOW}(c){C_RESET} Compactar     {C_MAGENTA}(v){C_RESET} Backups (/save)")
-    print(f"  {C_CYAN}(i){C_RESET} Conectar iPad (/ipad)     {C_RED}(0){C_RESET} Salir\n")
+    print(f"  {C_CYAN}(i){C_RESET} Conectar iPad (/ipad)     {C_YELLOW}(t){C_RESET} Test Systems (/test)   {C_RED}(0){C_RESET} Salir\n")
     statusbar.render_prompt_bar("MAIN MENU", BG_PROC, BG_TASK)
     try: op = input(f"{C_CYAN}> {C_RESET}").strip()
     except KeyboardInterrupt: break
     if not op: continue
     if op.startswith("/") and handle_slash(op):
         input(f"{C_DIM}Pulsa Enter para refrescar...{C_RESET}"); continue
-    if op == "1":
-        tdir = select_task()
+    if op in ("1", "1_resume"):
+        if op == "1":
+            tdir = select_task()
         if tdir:
             print(f"{C_GREEN}🚀 Corriendo en esta misma ventana (Ctrl+C para volver al menú)...{C_RESET}\n")
             try:
@@ -256,8 +260,11 @@ while True:
     elif op.lower() == "b": subprocess.run([sys.executable, os.path.join(CORE, "brain_viewer.py")])
     elif op.lower() == "c": subprocess.run([sys.executable, os.path.join(CORE, "compact_brain.py")]); input("Enter...")
     elif op.lower() == "v": subprocess.run([sys.executable, os.path.join(CORE, "version_control.py")])
+    elif op.lower() == "t": run_system_tests(); input(f"{C_DIM}Pulsa Enter...{C_RESET}")
     elif op.lower() == "i": start_ipad_bridge(); input(f"{C_DIM}Pulsa Enter...{C_RESET}")
     elif op == "0": break
     else:
         run_ucrt(op)
         input(f"{C_DIM}Pulsa Enter para continuar...{C_RESET}")
+
+
